@@ -4,10 +4,20 @@
 
 V=15
 
+ifeq ($(OS),Windows_NT)          # is Windows_NT on XP, 2000, 7, Vista, 10...
+    detected_OS := Windows
+else
+    detected_OS := $(shell uname)
+endif
+
+$(info OS is ${detected_OS})
+
 # Flags for compiling T3X/0 assembly output
 #
-  CFLAGS=
+  CFLAGS=-std=c89
+ifneq ($(detected_OS),Darwin)
   CFLAGS+=-m32                 # on 64-bit systems
+endif
 # CFLAGS+=-fPIC                # get rid of stupid linker errors
 # CFLAGS+=-Wl,-z,notext        # get rid of stupid linker errors
 

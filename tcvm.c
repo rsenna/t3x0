@@ -9,7 +9,7 @@
 #include <fcntl.h>
 #include <string.h>
 
-#ifdef unix
+#if defined (unix) || (__APPLE__)
  #include <unistd.h>
 #endif
 
@@ -86,9 +86,9 @@ cell pop(void) {
 	P += 2;
 	return w(P-2);
 }
-#ifdef __TURBOC__                                                               
- int S(cell x) { return x; }                                                    
-#else                                                                           
+#ifdef __TURBOC__
+ int S(cell x) { return x; }
+#else
  int S(cell x) { return x > 32767? x-65536: x; }
 #endif
 
