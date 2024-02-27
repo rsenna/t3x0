@@ -1,0 +1,25 @@
+
+Bug list from Rugxulo
+
+Limits
+- IMKSPACE in source (S86.T) needs to be increased (512 -> 1536)
+- all instructions must be lowercase ("mov")
+- all hex numbers must be uppercase ("$0A")
+- simple arithmetic isn't supported ("cmp byte myvar+2,0")
+
+Missing Features
+[FIXED] no errorlevel 1 on failure to assemble (and makes 0-byte .COM)
+- lack of some instructions (LEA)
+- unclear error messages ("bad operand(s)" ... what? where? how?)
+
+Inefficiencies
+- "MOV AX, ..." doesn't use the shorter form
+- "INC DI" is two bytes instead of one
+
+Bugs!
+- ?? SUB silently turned into AND ??
+- "MOV [BX+@var]" silently broken (but "CMP" works)
+- "CMP b[mem],imm" is mysteriously turned into ADD
+- "XOR [mem],imm" and "SUB [mem],imm" don't work
+- line numbers in error reporting are (sometimes?) off by one, confusing
+

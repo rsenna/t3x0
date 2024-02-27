@@ -1,0 +1,124 @@
+! CP/M Console Interface
+! Nils M Holm, 2023,2024
+! In the public domain / 0BSD license
+
+! needs: t3x
+
+module console;
+
+ struct	SEQ =	S_LINES, S_CLRSCR, S_CLREOL, S_MOVE, S_RSCROLL, S_CSROFF,
+ 		S_CSRON;
+
+ const	SEQLEN = 20;
+
+ var    Lines;
+ var	Seq_move, Seq_clrscr, Seq_clreol,
+ 	Seq_rscroll, Seq_csroff, Seq_csron;
+
+ var	Mdelay;
+
+ length(s) return t3x.memscan(s, 0, 32767);
+
+ public writes(s) t3x.write(T3X.SYSOUT, s, length(s));
+
+ public wrch(c) do var b::1;
+	b::0 := c;
+	t3x.write(T3X.SYSOUT, b, 1);
+ end
+
+ var ntoa_buf::10;
+ public ntoa(x) do var i;
+	if (\x) return "0";
+	i := 9;
+	ntoa_buf::i := 0;
+	while (x) do
+		i := i-1;
+		ntoa_buf::i := x mod 10 + '0';
+		x := x / 10;
+	end
+	return @ntoa_buf::i;
+ end
+
+ conctl(s, a) do var i, c, p, o;
+	i := 0;
+	c := s::i;
+	while (c) do
+		ie (c = '%') do
+			i := i+1;
+			c := s::i;
+			ie (c = 'x' \/ c = 'y') do
+				p := c = 'x'-> 0: 1;
+				i := i + 1;
+				c := s::i;
+				ie (c = 'c') do
+					o := s::(i+1);
+					wrch(a[p]+o);
+				end
+				else do
+					o := s::(i+1) - '0';
+					writes(ntoa(a[p]+o));
+				end
+				i := i+1;
+			end
+			else do
+				wrch(c);
+			end
+		end
+		else do
+			wrch(c);
+		end
+		i := i + 1;
+		c := s::i;
+	end
+ end
+
+ public setup(p) do
+	Lines := p[S_LINES];
+	Seq_clrscr := p[S_CLRSCR];
+	Seq_clreol := p[S_CLREOL];
+	Seq_move := p[S_MOVE];
+	Seq_rscroll := p[S_RSCROLL];
+	Seq_csroff := p[S_CSROFF];
+	Seq_csron  := p[S_CSRON];
+ end
+
+ public shutdown() ;
+
+ public calibrate(m) Mdelay := m;
+
+ public wait(n) do var i, j;
+	for (i=0, n)
+		for (j=0, Mdelay)
+			;
+ end
+
+ public clrscr() conctl(Seq_clrscr, 0);
+
+ public clreol() conctl(Seq_clreol, 0);
+
+ public move(x, y) conctl(Seq_move, [(x,y)]);
+
+ public scroll() do
+	move(0, Lines-1);
+	wrch('\n');
+ end
+
+ public rscroll() do
+	move(0, 0);
+	conctl(Seq_rscroll, 0);
+ end
+
+ public csroff() conctl(Seq_csroff, 0);
+
+ public csron() conctl(Seq_csron, 0);
+
+ public pollkey() return t3x.bdos(6, 255);
+
+ public getkey() do var c;
+	while (1) do
+		c := pollkey();
+		if (c) return c;
+	end
+ end
+
+end

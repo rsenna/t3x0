@@ -1,0 +1,11 @@
+
+	? FreeBSD 386 binary port (requires separate I+D)
+
+	? DOS86 EXE port (also sep. I+D)
+
+	? implement at least SEEK_SET on CP/M
+
+	? catch forward-declared but unresolved functions in modules
+
+	? dead code elimination
+

@@ -1,0 +1,25 @@
+! Unix Console Interface
+! Nils M Holm, 2024
+! In the public domain / 0BSD license
+
+module console;
+
+ public extern	calibrate(1),
+		clreol(0),
+		clrscr(0),
+		getkey(0),
+		move(2),
+		pollkey(0),
+		refresh(0),
+		scroll(0),
+		rscroll(0),
+		setup(1),
+		shutdown(0),
+		wait(1),
+		wrch(1),
+		writes(1);
+
+ public csron();
+ public csroff();
+
+end

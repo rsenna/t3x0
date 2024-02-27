@@ -1,0 +1,392 @@
+%token VAR, CONST, STRUCT, DECL, EXTERN, INLINE,
+%token USE, INTEGER, MODULE, END, IF, IE, ELSE,
+%token WHILE, FOR, LEAVE, LOOP, RETURN, HALT, DO
+%token MODULO, PACKED, CALL, STRING, SYMBOL, PUBLIC
+%%
+
+program:
+	  declaration_list compound_stmt
+	| compound_stmt
+	;
+
+declaration_list:
+	  declaration
+	| declaration declaration_list
+	;
+
+declaration:
+	  VAR var_list ';'
+	| CONST const_list ';'
+	| STRUCT symbol_name '=' struct_members ';'
+	| DECL decl_list ';'
+	| EXTERN decl_list ';'
+	| INLINE inline_decl_list ';'
+	| function_decl
+	| module_decl
+	| USE symbol_name ';'
+	| USE symbol_name ':' symbol_name ';'
+	;
+
+var_list:
+	  symbol_name
+	| symbol_name '[' const_val ']'
+	| symbol_name '::' const_val
+	| var_list ',' symbol_name
+	;
+
+const_list:
+	  const_decl
+	| const_decl ',' const_list
+	;
+
+const_decl:
+	symbol_name '=' const_val
+	;
+
+decl_list:
+	  fwd_or_extern_decl
+	| fwd_or_extern_decl',' decl_list
+	;
+
+fwd_or_extern_decl:
+	symbol_name '(' const_val ')'
+	;
+
+inline_decl_list:
+	  inline_decl
+	| inline_decl ',' inline_decl_list
+	;
+
+inline_decl:
+	symbol_name '(' const_val ')' '=' '[' integer_list ']'
+	;
+
+integer_list:
+	  INTEGER
+	| INTEGER ',' integer_list
+	;
+
+struct_members:
+	  symbol_name
+	| symbol_name ',' struct_members ';'
+	;
+
+module_decl:
+	  MODULE module_member_list END
+	| MODULE module_member_list compound_stmt END
+	;
+
+module_member_list:
+	  module_member
+	| module_member module_member_list
+	;
+
+module_member:
+	  VAR var_list ';'
+	| CONST const_list ';'
+	| STRUCT symbol_name '=' struct_members ';'
+	| EXTERN decl_list ';'
+	| INLINE inline_decl_list ';'
+	| function_decl
+	| PUBLIC CONST const_list ';'
+	| PUBLIC STRUCT symbol_name '=' struct_members ';'
+	| PUBLIC EXTERN decl_list ';'
+	| PUBLIC INLINE inline_decl_list ';'
+	| PUBLIC function_decl
+	;
+
+function_decl:
+	  symbol_name '(' argument_list ')' statement
+	| symbol_name '(' ')' statement
+	;
+
+argument_list:
+	  symbol_name
+	| symbol_name ',' argument_list
+	;
+
+statement:
+	  compound_stmt
+	| symbol_name ':=' expression ';'
+	| symbol_name subscripts ':=' expression ';'
+	| function_call
+	| IF '(' expression ')' statement
+	| IE '(' expression ')' statement
+	  ELSE statement
+	| WHILE '(' expression ')' statement
+	| FOR '(' symbol_name '=' expression ','
+	          expression ')'
+	      statement
+	| FOR '(' symbol_name '=' expression ','
+	          expression,
+	          const_val ')'
+	      statement
+	| LEAVE ';'
+	| LOOP ';'
+	| RETURN expression ';'
+	| HALT const_val ';'
+	| HALT ';'
+	| ';'
+	;
+
+compound_stmt:
+	  DO END
+	| DO local_decl_list END
+	| DO statement_list END
+	| DO local_decl_list statement_list END
+	;
+
+local_decl_list:
+	  local_decl
+	| local_decl local_decl_list
+	;
+
+local_decl:
+	  VAR var_list ';'
+	| CONST const_list ';'
+	| STRUCT symbol_name '=' struct_members ';'
+	;
+
+statement_list:
+	  statement
+	| statement statement_list
+	;
+
+expression_list:
+	  expression
+	| expression ',' expression_list
+	;
+
+expression:
+	  disjunction
+	| disjunction '->' expression ':' expression
+	;
+
+disjunction:
+	  conjunction
+	| conjunction '/\\' disjunction
+	;
+
+conjunction:
+	  equation
+	| equation '\\/' conjunction
+	;
+
+equation:
+	  relation
+	| relation '=' equation
+	| relation '\\=' equation
+	;
+
+relation:
+	  bit_operation
+	| bit_operation '<' relation
+	| bit_operation '>' relation
+	| bit_operation '<=' relation
+	| bit_operation '>=' relation
+	| bit_operation '.<' relation
+	| bit_operation '.>' relation
+	| bit_operation '.<=' relation
+	| bit_operation '.>=' relation
+	;
+
+bit_operation:
+	  sum_operation
+	| sum_operation '&' bit_operation
+	| sum_operation '|' bit_operation
+	| sum_operation '^' bit_operation
+	| sum_operation '<<' bit_operation
+	| sum_operation '>>' bit_operation
+	;
+
+sum_operation:
+	  term_operation
+	| term_operation '+' sum_operation
+	| term_operation '-' sum_operation
+	;
+
+term_operation:
+	  factor
+	| factor '*' term_operation
+	| factor '/' term_operation
+	| factor '.*' term_operation
+	| factor './' term_operation
+	| factor MODULO term_operation
+	;
+
+factor:
+	  INTEGER
+	| function_call
+	| string_literal
+	| table
+	| packed_table
+	| symbol_ref
+	| symbol_name subscripts
+	| '@' symbol_name
+	| '@' symbol_name subscripts
+	| '-' factor
+	| '\\' factor
+	| '~' factor
+	| '(' expression ')'
+	;
+
+subscripts:
+	  '[' expression ']'
+	| '[' expression ']' subscripts
+	| '::' factor
+	;
+	
+table:
+	'[' table_member_list ']'
+	;
+
+table_member_list:
+	  table_member
+	| table_member ',' table_member_list
+	;
+
+table_member:
+	  const_val
+	| string_literal
+	| packed_table
+	| table
+	| '(' expression_list ')'
+	;
+
+packed_table:
+	PACKED '[' packed_table_member_list ']'
+	;
+
+packed_table_member_list:
+	  packed_table_member
+	| packed_table_member ',' packed_table_member_list
+	;
+
+packed_table_member:
+	  const_val
+	| string_literal
+	;
+
+function_call:
+	  symbol_ref '(' ')'
+	| symbol_ref '(' expression_list ')'
+	| CALL symbol_name '(' ')'
+	| CALL symbol_name '(' expression_list ')'
+	;
+
+const_val:
+	  const_factor
+	| const_factor '|' const_factor
+	| const_factor '+' const_factor
+	| const_factor '*' const_factor
+	;
+
+const_factor:
+	  symbol_ref
+	| integer
+	;
+
+symbol_ref:
+	  symbol_name
+	| symbol_name '.' symbol_name
+	;
+
+integer:
+	INTEGER
+	;
+
+string_literal:
+	STRING
+	;
+
+symbol_name:
+	SYMBOL
+	;
+
+%%
+
+integer:
+	  integer_literal
+	| character_literal
+	;
+
+integer_literal:
+	  digits
+	| '%' & digits
+	;
+
+digits:
+	  digit
+	| digit & digits
+
+digit:
+	  '0' | '1' | '2' | '3' | '4'
+	| '5' | '6' | '7' | '8' | '9'
+
+character_literal:
+	''' char_char '''
+	;
+
+char_char:
+	  string_char
+	| '"'
+	| escape_sequence
+	;
+
+string_literal:
+	  '"' & string_char_seq & '"'
+	| '"' & '"'
+	;
+
+string_char_seq:
+	  string_char
+	| string_char & string_char_seq
+	;
+
+string_char:
+	  ' ' | '!' |     | '#' | '$' | '%' | '&' | '''
+	| '(' | ')' | '*' | '+' | ',' | '-' | '.' | '/'
+	| '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7'
+	| '8' | '9' | ':' | ';' | '<' | '=' | '>' | '?'
+	| '@' | 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G'
+	| 'H' | 'I' | 'J' | 'K' | 'L' | 'M' | 'N' | 'O'
+	| 'P' | 'Q' | 'R' | 'S' | 'T' | 'U' | 'V' | 'W'
+	| 'X' | 'Y' | 'Z' | '[' |     | ']' | '^' | '_'
+	| '`' | 'a' | 'b' | 'c' | 'd' | 'e' | 'f' | 'g'
+	| 'h' | 'i' | 'j' | 'k' | 'l' | 'm' | 'n' | 'o'
+	| 'p' | 'q' | 'r' | 's' | 't' | 'u' | 'v' | 'w'
+	| 'x' | 'y' | 'z' | '{' | ' |' | '}' | '~'
+	| escape_sequence
+	;
+
+escape_sequence:
+	  '\\a' | '\\b' | '\\e' | '\\f' | '\\n'
+	| '\\q' | '\\r' | '\\s' | '\\t' | '\\v'
+	;
+
+symbol_name:
+	  initial_sym_char
+	| initial_sym_char & sym_char_seq
+	;
+
+initial_sym_char:
+	        'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G'
+	| 'H' | 'I' | 'J' | 'K' | 'L' | 'M' | 'N' | 'O'
+	| 'P' | 'Q' | 'R' | 'S' | 'T' | 'U' | 'V' | 'W'
+	| 'X' | 'Y' | 'Z'
+	| '_' | 'a' | 'b' | 'c' | 'd' | 'e' | 'f' | 'g'
+	| 'h' | 'i' | 'j' | 'k' | 'l' | 'm' | 'n' | 'o'
+	| 'p' | 'q' | 'r' | 's' | 't' | 'u' | 'v' | 'w'
+	| 'x' | 'y' | 'z'
+	;
+
+sym_char_seq:
+	  sym_char
+	| sym_char & sym_char_seq
+	;
+
+sym_char:
+	  initial_sym_char
+	| digit
+	;
+

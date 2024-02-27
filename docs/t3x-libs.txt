@@ -1,0 +1,957 @@
+
+	----------------------------------------------------------------
+	CHARACTER FUNCTIONS
+	----------------------------------------------------------------
+
+	USE char: ch;
+
+	-----[ CH.ASCII(C) ]--------------------------------------------
+	-----[ CH.ALPHA(C) ]--------------------------------------------
+	-----[ CH.UPPER(C) ]--------------------------------------------
+	-----[ CH.LOWER(C) ]--------------------------------------------
+	-----[ CH.DIGIT(C) ]--------------------------------------------
+	-----[ CH.SPACE(C) ]--------------------------------------------
+	-----[ CH.CNTRL(C) ]--------------------------------------------
+
+	Return %1, if the character C is in a specific range. The
+	following table lists the ranges for which the functions
+	return truth
+
+	ASCII   0..127
+	ALPHA   a..z, A..Z
+	UPPER   A..Z
+	LOWER   a..z
+	DIGIT   0..9
+	SPACE   9..13, 32
+	CNTRL   0..31, 127
+
+	Example: ch.digit('5')   ! true
+
+
+	-----[ CH.LCASE(C) ]--------------------------------------------
+	-----[ CH.UCASE(C) ]--------------------------------------------
+
+	Convert the character C to lower case (ch.lcase) or upper case
+	(ch.ucase). If the character is not a letter, or already is in
+	the requested case, return it unchanged.
+
+	Example: ch.ucase('a')   ! gives 'A'
+
+
+	-----[ CH.VALUE(C) ]--------------------------------------------
+
+	If the character C is a digit, return its value and otherwise
+	return %1.
+
+	Example: ch.value('1')   ! gives 1
+
+
+	----------------------------------------------------------------
+	CONSOLE INTERFACE FUNCTIONS
+	----------------------------------------------------------------
+
+	USE t3x;
+	USE console: con;
+
+	-----[ CON.CALIBRATE(N) ]---------------------------------------
+
+	Set CON.WAIT delay to N. See CON.WAIT.
+
+
+	-----[ CON.CLREOL() ]-------------------------------------------
+
+	Clear (replace with blanks) characters from current cursor
+	position to end of line.
+
+	Example: con.clreol();
+
+
+	-----[ CON.CLRSCR() ]-------------------------------------------
+
+	Clear (replace with blanks) characters from current cursor
+	position to end of screen.
+
+	Example: con.clrscr();
+
+
+	-----[ CON.CSRON()  ]-------------------------------------------
+	-----[ CON.CSROFF() ]-------------------------------------------
+
+	Turn visible cursor on/off. Not all terminals support this
+	operation. On terminals not supporting cursor hiding this is a
+	null operation.
+
+	Example: con.csroff(); ! Cursor is invisible now
+
+
+	-----[ CON.GETKEY()  ]------------------------------------------
+
+	Wait for a key to be pressed on the console keyboard and return
+	the ASCII code of the key pressed.
+
+	Example: con.getkey();
+
+
+	-----[ CON.MOVE(X, Y) ]-----------------------------------------
+
+	Move the cursor to column X, row Y. The upper left corner of the
+	screen has the coordinates (0,0).
+
+	Example: con.move(0, 0); ! move cursor to home position
+
+
+	-----[ CON.POLLKEY() ]------------------------------------------
+
+	Check if a key has been pressed on the console keyboard. When a
+	key has been pressed, return its ASCII code and otherwise return
+	zero. Note that this means that pressing a key associated with
+	the ASCII code 0 (NUL) wil deliver an ambiguous and hence
+	useless result.
+
+	Example: DO VAR c;
+	            c := con.pollkey();
+	            if (c) handle_key(c);
+	         END
+
+
+	-----[ CON.REFRESH() ]------------------------------------------
+
+	Commit all pending screen output operations. On Unix drawing on
+	the screen via CURSES will not immediately change the content of
+	the screen. In order to make all pending output operations
+	visible either CON.REFRESH or CON.GETKEY or CON.WAIT has to be
+	called.
+
+	Example: See CON.WAIT
+
+
+	-----[ CON.RSCROLL() ]------------------------------------------
+
+	Scroll the lines on the screen down by one line. Fill the top
+	line with blanks.
+
+	Example: con.rscroll().
+
+
+	-----[ CON.SCROLL() ]-------------------------------------------
+
+	Scroll the lines on the screen up by one line. Fill the bottom
+	line with blanks.
+
+	NOTE: scrolling the screen by moving to the bottom and
+	outputting a newline character may or may not work on Unix.
+	Using CON.SCROLL instead in recommended.
+
+	Example: con.scroll().
+
+
+	-----[ CON.SETUP(DATA) ]----------------------------------------
+
+	Initialize the console interface. On CP/M systems a description
+	of the connected terminal must be passed to the function in the
+	vector DATA. On DOS and Unix systems, DATA may be any value, but
+	passing a default terminal description is recommended when CP/M
+	compatibility is desired.
+
+	The DATA vector has the following structure:
+
+	Offset  Content
+	0       Number of lines on the terminal screen
+	1       Control sequence for moving the cursor
+	2       Control sequence for clearing the screen
+	3       Control sequence for clearing the current line
+	4       Control sequence for hiding the cursor
+	5       Control sequence for making the cursor visible
+
+	In cursor move sequences the following sub-sequences will be
+	interpreted as follows:
+
+	Seq.   Replaced by
+	%xcK   The X coordinate plus the ASCII code of the character K
+	%ycK   The Y coordinate plus the ASCII code of the character K
+	%xdD   The X coordinate plus the value of the digit D
+	%ydD   The Y coordinate plus the value of the digit D
+
+	Examples:
+	! Set up a VT-52 terminal
+	con.setup([24, "\eH\eJ", "\eK", "\eY%yc\s%xc\s", "", ""]);
+
+	! Set up a VT-100 terminal
+	con.setup([24, "\e[H\e[J", "\e[K", "\e[%yd1;%xd1H",
+	           "\e[?25l", "\e[?25h"]);
+
+
+	-----[ CON.SHUTDOWN() ]-----------------------------------------
+
+	Shut down the console interface. This will restore the previous
+	state of the terminal on Unix systems.
+
+	Example: con.shutdown();
+
+
+	-----[ CON.WAIT(N) ]--------------------------------------------
+
+	Wait for N units of time. The exact delay caused by CON.WAIT is
+	at least the delay caused by usleep(N*Mdelay) on Unix systems,
+	where Mdelay is set up using the CON.CALIBRATE function. Mdelay
+	has no default value and MUST be set up using CON.CALIBRATE. On
+	CP/M and DOS systems, delays are generated using delay loops and
+	depend on the speed of the system. Delay calibration is mostly
+	a matter of experimentation.
+
+	Example:
+
+	USE t3x;
+	USE console: con;
+
+	DO VAR i;
+	    con.setup(0); ! For CP/M see CON.SETUP for details
+	    con.clrscr();
+	    con.calibrate(1000);
+	    FOR (i=0, 80) DO
+	        con.move(i, 10);
+	        con.wrch('X');
+	        con.wait(50);
+	    END
+	    con.move(0, 11);
+	    con.shutdown();
+	END
+
+
+	-----[ CON.WRCH(C)   ]------------------------------------------
+	-----[ CON.WRITES(S) ]------------------------------------------
+
+	Write character C or the string S to the terminal screen at the
+	current cursor position. On Unix systems the character will only
+	become visible during the next screen refresh (see CON.REFRESH).
+
+	Examples: con.wrch('X');
+	          con.writes("Hello, World");
+
+
+	----------------------------------------------------------------
+	CP/M BDOS CALL FUNCTIONS
+	----------------------------------------------------------------
+
+	USE cpm;
+
+	-----[ CPM.EXPANDFN(S, FCB) ]-----------------------------------
+
+	Expand the file name S to FCB format and store it in the FCB
+	buffer FCB. The FCB_DISK, FCB_NAME, and FCB_TYPE fields will be
+	filled. Return the buffer. When the file name in S cannot be
+	converted to FCB format, return 0.
+
+	A file name cannot be converted to FCB format, if
+
+	- it has more than 8 characters and contains no dot;
+	- it has more than 8 character before a dot;
+	- it has more than 3 characters after a dot.
+
+	When the file name contains a drive letter, the FCB_DISK field
+	of FCB will be filled with the drive code corresponding to that
+	letter. When there is no drive letter, the field willl be set
+	to zero (default drive). All characters in the file name will be
+	converted to upper case.
+
+	Example: cpm.expandfn("txtrn.t")
+
+	The example will set FCB_DISK to 0 and fill the FCB_NAME and
+	FCB_TYPE fields as follows (_ means blank): "TXTRN___T__".
+
+
+	-----[ FCB STRUCTURE ]------------------------------------------
+
+	The FCB structure is a byte structure containing the following
+	fields:
+
+	FCB_DISK, FCB_NAME, FCB_TYPE, FCB_ROBIT, FCB_SYSBIT,
+	FCB_CHANGED, FCB_EXTENT, FCB_RECORDS, FCB_BLOCKS,
+	FCB_SEQREC, FCB_RANRECL, FCB_RANRECH, RCB_RANOVFL.
+
+	Its DISK, NAME, and TYPE fields can be filled with the
+	CPM.EXPANDFN function.
+
+	--- Example ---
+	DO var fcb::CPM.FCB;
+	    cpm.expandfn("newfile.tmp", fcb);
+	    cpm.create(fcb);
+	END
+
+	-----[ BDOS FUNCTIONS ]-----------------------------------------
+
+	The library contains the following BDOS functions. See the
+	library source code and/or a CP/M programmer's manual for
+	details.
+
+	CLOSE, CONIN, CONIO, CONOUT, CONSTAT, CREATE, DSKRESET, ERASE,
+	GETALVEC, GETCURDSK, GETDPB, GETFSIZ, GETIOB, GETLOGVEC,
+	GETRODSKS, GETSETUSR, GETVER, LSTOUT, OPEN, PRINTS, PUNOUT,
+	READCONS, READIN, READRAN, READSEQ, RENAME, RESETDSKS, SEARCH,
+	SEARCHNEXT, SELDSK, SETDMA, SETDSKRO, SETFAT, SETIOB, SETRANREC,
+	SYSRESET, WRITERAN, WRITERANZ, WRITESEQ
+
+
+	----------------------------------------------------------------
+	CP/NC BDOS CALL FUNCTIONS
+	----------------------------------------------------------------
+
+	USE cpm;
+	USE cpnc;
+
+	-----[ CPNC.ABSREAD(N) ]----------------------------------------
+
+	Read absolute record N from the selected disk device (see
+	CPNC.SETABSDISK) into the DMA buffer.
+
+	--- Example ---
+	DO
+	    cpm.setdma(0x80);
+	    cpnc.setabsdisk(0);  ! A:
+	    cpnc.absread(0);     ! boot record
+	END
+
+
+	-----[ CPNC.ABSWRITE(N) ]---------------------------------------
+
+	Write the DMA buffer to absolute record N of the selected disk
+	device (see CPNC.SETABSDISK).
+
+	Example: see CPNC.ABSREAD
+
+
+	-----[ CPNC.AUXIN() ]-------------------------------------------
+
+	Read a byte from the AUX: device and return it.
+	This functions replaces CPM.READIN.
+
+	Example: cpnc.auxin()
+
+
+	-----[ CPNC.AUXINST() ]-----------------------------------------
+
+	Return 255, if the AUX: device is ready for input and otherwise
+	return 0.
+
+	This functions replaces CPM.GETIOB.
+
+	Example: cpnc.auxinst()
+
+
+	-----[ CPNC.AUXOUT() ]------------------------------------------
+
+	Send a a byte to the AUX: device.
+	This functions replaces CPM.PUNOUT.
+
+	Example: cpnc.auxout('x')
+
+
+	-----[ CPNC.AUXOUTST() ]----------------------------------------
+
+	Return 255, if the AUX: device is ready for output and otherwise
+	return 0.
+
+	This functions replaces CPM.SETIOB.
+
+	Example: cpnc.auxoutst()
+
+
+	-----[ CPNC.DSKFREE(DSK) ]--------------------------------------
+
+	Store the number of records available on disk DSK as a 24-bit
+	number in the first three bytes of the DMA buffer.
+
+	This is a CP/M 3.0 BDOS call.
+
+	--- Example ---
+	VAR dmabuf::128;
+	DO
+	    cpm.setdma(dmabuf);
+	    cpnc.dskfree(0);
+	END
+
+
+	-----[ CPNC.SETABSDISK(DSK) ]-----------------------------------
+
+	Select disk device DSK for absolute I/O, where 0=A:, etc.
+
+	Example: cpnc.setabsdisk(0);
+
+
+	----------------------------------------------------------------
+	INPUT / OUTPUT FUNCTIONS
+	----------------------------------------------------------------
+
+	USE t3x;
+	USE string;
+	USE io;
+
+	-----[ IO.NL() ]------------------------------------------------
+	-----[ IO.FNL(FD) ]---------------------------------------------
+
+	Write a system-specific newline sequence to the given file
+	descriptor FD, e.g. LF on Unix and CR,LF on DOS and CP/M.
+
+	IO.NL writes the sequence to T3X.SYSOUT.
+
+	Example: io.nl();
+
+
+	-----[ IO.WRITELN(S) ]------------------------------------------
+	-----[ IO.FWRITELN(FD, S) ]-------------------------------------
+
+	Write the string S to the file descriptor FD and append a
+	newline sequence (see IO.FNL).
+
+	IO.WRITELN writes to T3X.SYSOUT.
+
+	Example: io.writeln("Hello, World!");
+
+
+	-----[ IO.WRITES(S) ]-------------------------------------------
+	-----[ IO.FWRITES(FD, S) ]--------------------------------------
+
+	Write the string S to the file descriptor FD.
+
+	IO.WRITES writes to T3X.SYSOUT.
+
+	Example: io.writes("Enter something: ");
+
+
+	----------------------------------------------------------------
+	I/O STREAM FUNCTIONS
+	----------------------------------------------------------------
+
+	USE t3x;
+	USE iostream: ios;
+
+	-----[ STRUCT IOS ]---------------------------------------------
+
+	The size of an I/O stream structure, used for allocating I/O
+	streams.
+
+	Example: see IOS.CREATE
+
+
+	-----[ IOS.CLOSE(IOS) ]-----------------------------------------
+
+	Flush the I/O stream IOS (see IOS.FLUSH) and the close the
+	associated file descriptor. Return 0=success, %1=error.
+
+	Example: see IOS.CREATE
+
+
+	-----[ IOS.CREATE(IOS, FD, BUF, LEN, MODE) ]--------------------
+
+	Initialize an I/O stream. Return (a pointer to) the I/O stream.
+	This function must be used to initialize every I/O stream, even
+	if it is later attached to a file using IOS.OPEN. It can also
+	be used to attach the system file descriptors (T3X.SYSIN, etc)
+	to a stream. The parameters are as follows:
+
+	IOS     the IOS structure to initialize
+	FD	the file descriptor to assign to the IOS
+	BUF	the buffer to use in the IOS
+	LEN	the length of BUF in bytes
+	MODE	the mode of the IOS
+
+	The following mutually exclusive MODEs are available:
+
+	FREAD   use IOS for reading only
+	FWRITE  use IOS for writing only
+	FRDWR   use IOS for both reading and writing
+
+	When switching between reading and writing in FRDWR mode,
+	IOS.FLUSH or IOS.MOVE must be called between the operations.
+
+	The following can be OR'ed with any of the above modes:
+
+	FKILLCR remove CR characters from input
+	FADDCR  add CR before every LF in output
+	FTRANS  shorthand for both FKILLCR and FADDCR
+
+	--- Example ---
+	VAR out[IOSTREAM.IOS];
+	VAR buf::256;
+	DO
+	    ios.create(out, 1, buf, 256, IOSTREAM.FWRITE);
+	    ios.open(out, "testfile", IOSTREAM.FWRITE);
+	    ios.writes(out, "Hello, World!\n");
+	    ios.close(out);
+	END
+
+
+	-----[ IOS.FLUSH(IOS) ]-----------------------------------------
+
+	Write all data currently buffered in the I/O stream to the
+	associated file descriptor. Return 0=success, %1=error.
+
+	--- Example ---
+	VAR out[IOSTREAM.IOS];
+	VAR buf::256;
+	DO
+	    ios.create(out, T3X.SYSOUT, buf, 256, IOSTREAM.FWRITE);
+	    ios.writes(out, "Enter something: ");
+	    ios.flush(out);
+	END
+
+
+	-----[ IOS.MOVE(IOS, DIST, MODE) ]------------------------------
+
+	Move the read/write pointer of the I/O stream IOS to a new
+	position. The position is determined by the current position
+	and the MODE. DIST is unsigned. The following modes exist:
+
+	IOSTREAM.SEEK_SET  DIST bytes forward from beginning of file
+	IOSTREAM.SEEK_FWD  DIST bytes forward from current position
+	IOSTREAM.SEEK_END  DIST bytes backward from end of file
+	IOSTREAM.SEEK_BCK  DIST bytes backward from current position
+
+	Example: ! move to end of file
+	         ios.move(stream, 0, IOSTREAM.SEEK_END)
+
+
+	-----[ IOS.OPEN(IOS, NAME, MODE) ]------------------------------
+
+	Open the file NAME in the given MODE and attach it to the I/O
+	stream IOS. For a list of MODEs see IOS.CREATE. Return the IOS
+	upon success and %1 in case of an error.
+
+	Example: see IOS.CREATE
+
+
+	-----[ IOS.RDCH(IOS) ]------------------------------------------
+
+	Read a character from the I/O stream IOS and return it. Return
+	%1 in case of an error.
+
+	Example: ios.rdch(stream)
+
+
+	-----[ IOS.READ(IOS, BUF, LEN) ]--------------------------------
+
+	Read up to LEN characters from the I/O stream IOS into the
+	buffer BUF. Return the number of characters read or %1 in case
+	of an error.
+
+	--- Example ---
+	DO VAR buf:100;
+	    ios.read(stream, buf, 100);
+	END
+
+
+	-----[ IOS.READS(IOS, BUF, LEN) ]-------------------------------
+
+	Read up to LEN characters from the I/O stream IOS into the
+	buffer BUF. When an LF character is found in the input, stop
+	reading. The LF character will be placed in the buffer. A NUL
+	character will be placed after the last character read. Return
+	the number of characters read or %1 in case of an error.
+
+	--- Example ---
+	DO VAR buf:100;
+	    ios.reads(stream, buf, 99);
+	END
+
+
+	-----[ IOS.WRCH(IOS, CH) ]--------------------------------------
+
+	Write the character CH to the I/O stream IOS. Return CH in case
+	of success and %1 in case of an error.
+
+	Example: ios.wrch(stream, 'x')
+
+
+	-----[ IOS.WRITE(IOS, BUF, LEN) ]-------------------------------
+
+	Write LEN bytes from the buffer BUF to the I/O stream IOS.
+	Return the number of characters written or %1 in case of an
+	error.
+
+	Example: ios.write(stream, "Hello", 5)
+
+
+	-----[ IOS.WRITES(IOS, S) ]--------------------------------------
+
+	Write the string S to the I/O stream IOS. Return the number of
+	characters written or %1 in case of an error.
+
+	Example: ios.writes(stream, "Hello");
+
+
+	----------------------------------------------------------------
+	DYNAMIC MEMORY FUNCTIONS
+	----------------------------------------------------------------
+
+	USE t3x;
+	USE memory: mem;
+
+	-----[ MEM.ALLOC(K) ]-------------------------------------------
+
+	Allocate K bytes from the memory pool and return a pointer to
+	the allocated block. When no block of the requested size is
+	available, return zero.
+
+	Example: see MEM.INIT.
+
+
+	-----[ MEM.FREE(B) ]--------------------------------------------
+
+	Deallocate the block B in the memory pool, returning it to the
+	free space. Defragment the pool by joining any adjunct free
+	blocks with B. Deallocating a block that has not previously
+	been allocated with MEM.ALLOC will terminate program execution
+	with an error message ("bad block").
+
+	Example: see MEM.INIT.
+
+
+	-----[ MEM.INIT(POOL, SIZE) ]-----------------------------------
+
+	Initialize a new memory pool POOL of the size SIZE (in bytes).
+	Re-initializing a pool will mark its entire space "free", so
+	this function can be used to quickly deallocate all objects in
+	the pool.
+
+	There can only be one pool at a time.
+
+	--- Example ---
+	VAR pool:10000;
+	DO var b;
+	   mem.init(pool, 10000);
+	   b := mem.alloc(100);
+	   mem.free(b);
+	END
+
+
+	-----[ MEM.WALK(BLK, SIZEP, STATP) ]----------------------------
+
+	Walk the chain of blocks in the memory pool. When BLK is zero,
+	return the address of the first block and when BLK points to
+	a block, return the address of the next block. When BLK points
+	to the last block in the chain, return 0.
+
+	When SIZEP is non-zero, fill the object pointed to by SIZEP
+	with the size of the returned block. When STATP is non-zero,
+	fill the object pointed to by STATP with the state of the
+	returned block, where %1 indicates that the block is in use
+	and 0 indicates that it is free.
+
+	--- Example ---
+	DO VAR b, s, z;
+	    b := mem.walk(0, @s, @z);
+	    while (b) do
+	        b := mem.walk(b, @s, @z);
+	    end
+	END
+
+
+	----------------------------------------------------------------
+	SHELLSORT FUNCTION
+	----------------------------------------------------------------
+
+	USE shellsrt: sort;
+
+	-----[ SORT.SORT(V, K, P) ]-------------------------------------
+
+	Sort the vector V of the size K using P as a comparison
+	predicate.
+
+	--- Example ---
+
+	lesseq(x, y) return x < y;
+
+	DO VAR v;
+	    v := [ 6, 1, 3, 9, 2, 0, 8, 4, 7, 5 ];
+	    sort.sort(v, 10, @lesseq);
+	END
+
+	----------------------------------------------------------------
+	STRING FUNCTIONS
+	----------------------------------------------------------------
+
+	USE t3x;
+	USE string: str;
+
+	-----[ CONST STRING.MAXLEN ]------------------------------------
+
+	The maximum length of a string including the terminating NUL
+	character.
+
+
+	-----[ STR.ATON(S, R, LP) ]-------------------------------------
+
+	Parse the number in the string S and return its value.
+	R specified the radix of the number in S. When LP is not zero,
+	it specifies the address of a variable containing the maximum
+	number of characters to parse in S. In this case the variable
+	will be filled with the actual number of characters parsed (i.e.
+	it will contain the index of the first character *not* parsed).
+
+	Both '-' and '%' are accepted as a leading minus sign.
+
+	--- Example ---
+	DO VAR lim, val;
+	    lim := 3;
+	    val := str.parse("-12345", 10, 3);
+	    ! at this point val = -12 and lp = 3
+	END
+
+
+	-----[ STR.COMP(A, B) ]-----------------------------------------
+
+	Compare the strings A and B and return their difference. Their
+	difference D is
+
+	- D=0, if all characters in both strings are equal
+	- D<0, if all characters up to position I are equal and
+	  A::(I+1) < B::(I+1)
+	- D>0, if all characters up to position I are equal and
+	  A::(I+1) > B::(I+1)
+
+	The comparison includes the terminating NUL character. See
+	example.
+
+	Example: str.comp("foo", "foobar")   ! returns D<0
+
+
+	-----[ STR.COPY(A, B) ]-----------------------------------------
+
+	Copy string B to the byte vector A. The byte vector must provide
+	enough space for the string B. Return A.
+
+	--- Example ---
+	DO VAR s::4;
+	    str.copy(s, "foo");
+	END
+
+
+	-----[ STR.DOWNCASE(S) ]----------------------------------------
+
+	Convert all upper case characters in the string S to lower case.
+	Leave all other characters untouched. Return S.
+
+	Example: str.downcase("F00B")  ! gives "f00b"
+
+
+	-----[ STR.FIND(A, B) ]-----------------------------------------
+
+	Find the offset of the first occurrence of the string B in the
+	string A. Return the offset or %1, if B is not contained in A.
+
+	Example: str.find("foobar", "bar")  ! returns 3
+
+
+	-----[ STR.LENGTH(S) ]------------------------------------------
+
+	Return the length of the string S exluding the terminating NUL
+	character.
+
+	Example: str.length("foobar")  ! returns 6
+
+
+	-----[ STR.NCOPY(N, A, B) ]-------------------------------------
+
+	Copy N-1 characters at most from the string B to the byte vector
+	A. Place a NUL character at A::(N-1). The byte vector A must be
+	provide space for at least N characters. Return A.
+
+	--- Example ---
+	DO VAR s::4;
+	    str.ncopy(3, s, "foobar");  ! S will contain "FOO"
+	END
+
+
+	-----[ STR.NTOA(N, R) ]-----------------------------------------
+
+	Fill an internal buffer with the ASCII representation of the
+	number N given the radix R. R must be in the range 2..16 or
+	-2..-16. When R is positive, the ASCII representation will be
+	unsigned and when R is negative, it will be signed.
+
+	Subsequent invokations of STR.NTOA will overwrite the internal
+	buffer.
+
+	--- Example ---
+	str.ntoa(0xffff, 16)   ! "FFFF"
+	str.ntoa(0xffff, %16)  ! "-1" on a 16-bit machine
+
+
+	-----[ STR.RSCAN(S, C) ]----------------------------------------
+
+	Find the offset of the rightmost occurrence of the character C
+	in the string S. Return the offset or %1, if C is not contained
+	in S.
+
+	Example: str.rscan('a', "aaaa")  ! returns 3
+
+
+	-----[ STR.SCAN(S, C) ]-----------------------------------------
+
+	Find the offset of the first character C in the string S.
+	Return the offset or %1, if C is not contained in S.
+
+	Example: str.scan('b', "abcd")  ! returns 1
+
+
+	-----[ STR.UPCASE(S) ]------------------------------------------
+
+	Convert all lower case characters in the string S to upper case.
+	Leave all other characters untouched. Return S.
+
+	Example: str.upcase("dec0de")  ! gives "DEC0DE"
+
+
+	----------------------------------------------------------------
+	STRING FUNCTIONS (T3XR7 COMPATIBILITY)
+	----------------------------------------------------------------
+
+	USE t3x;
+	USE string;
+	USE strcomp;
+
+	-----[ STRCOMP.NUMTOSTR(S, N, R) ]------------------------------
+
+	Basically the same as STR.NTOA, but uses a user-supplied buffer
+	S instead of an internal buffer.
+
+
+	-----[ STRCOMP.STRTONUM(S, R, LP) ]-----------------------------
+
+	Basically the same as STR.ATON.
+
+
+	-----[ STRCOMP.XLATE(S, C1, C2) ]-------------------------------
+
+	Replace every occurrence of the character C1 in S by C2.
+
+	Example: strcomp.xlate("lol", 'l', 'x');  ! gives "xox"
+
+
+	----------------------------------------------------------------
+	STRING FORMATTER
+	----------------------------------------------------------------
+
+	USE t3x;
+	USE string;
+	USE strfmt: fmt;
+
+	-----[ FMT.NFORMAT(N, S, TMPL, ARGS) ]--------------------------
+
+	Write ASCII representations of objects in the vector ARGS to the
+	buffer S. The string TMPL contains templates for formatting the
+	individual objects. At most N-1 characters will be written to S.
+	When the limit N-1 is reached, the representation of the last
+	element might be truncated. In this case the padding of the last
+	formatted element will be ignored.
+
+	Each character in the template TMPL will be copied to the buffer
+	S except for the character '%', which introduces a format
+	specified. Format specifiers have the following general format:
+
+	%[min][:f][U][LR]CDSX%
+
+	%    introduces the specifier
+	min  is the minimum field length; when the representation of
+	     the next argument is less than MIN, padding characters
+	     will be inserted
+	:f   selects the fill character F for padding; the default is
+	     the blank character
+	U    converts numbers to unsigned representation, the default
+	     is signed representation
+	LR   these characters select left/right padding; the default
+	     is to right-pad strings and left-pad numbers
+	C    insert string argument, padding is ignored
+	D    insert argument converted to decimal number
+	S    insert (copy) string
+	X    insert argument converted to hexa-decimal number
+	%    insert '%' character, ignore argument
+
+	Each specified fetches one argument from the ARGS vector, so
+	there must be at least as many arguments as format specifiers.
+
+	--- Examples ---
+
+	fmt.format(b, "%d", [123]);
+
+	Template      Arguments    Output (_ = blank)
+	"%d"          [123]        "123"
+	"%5d"         [123]        "__123"
+	"%5ld"        [123]        "123__"
+	"%5:xd"       [123]        "xx123"
+	"%5ux"        [%1]         "FFFF"   (on 16-bit machines)
+	"%10:+rs%5d"  ["foo", 27]  "+++++++foo___27"
+
+
+	-----[ FMT.FORMAT(S, TMPL, ARGS) ]------------------------------
+
+	FMT.FORMAT is like FMT.NFORMAT, but no limit is imposed on the
+	number of characters put in the output buffer S.
+
+	Examples: see FMT.NFORMAT
+
+
+	----------------------------------------------------------------
+	STRING PARSER
+	----------------------------------------------------------------
+
+	USE t3x;
+	USE string;
+	USE strparse;
+
+	-----[ STRPARSE.PARSE(S, TMPL, ARGS) ]--------------------------
+
+	Parse the string S according to the template TMPL and store
+	selected parts (tokens) of the string at the addresses stored
+	in the vector ARGS. Return the number of tokens extracted.
+
+	Each character in TMPL will be matched against a corresponding
+	character in S and when the characters do not match, parsing
+	is aborted and the number of successfully extracted tokens is
+	returned.
+
+	Format specifiers similar to those used in FMT.FORMAT are used
+	to match and extract specific types of tokens. The genera
+	formar of a specifier is:
+
+	%[len][:dlm]CDSWX[group]%
+
+	len      is a fixed length of characters to match/extract
+	dlm      specifies a delimiting character; extraction of this
+	 	 token will stop as soon as the character is matched,
+		 leaving the character unmatched and unextracted
+	C        extracts a single character, length and delimiter are
+		 ignored.
+	D        extracts a decimal number, converts it to a machine
+		 word and stores the machine word, the delimiter is
+		 ignored
+	S        extracts a string up to a given delimiter; when no
+		 delimiter is given the character following the %s
+		 in the template is used as a delimiter
+	W        matches any number of blank or tab (HT, ASCII 9)
+		 characters, but does not extract anything
+	D        extracts a hexa-decimal number, converts it to a
+	         machine word and stores the machine word, the
+		 delimiter is ignored
+	[group]  matches any number of any character in the group,
+	         but does not store anything
+
+	--- Examples ---
+
+	var s1::10, s2::10, x;
+	parser.parse("foobargoo  baz123",
+                     "foo%:gs%[go]%w%3s%d",
+                     [(s1), (s2), @x]);
+
+	             ! will store "bar" in S1, "baz" in S2 and 123 in X
+
+	Template   String     Extracted Token
+	"%d"       "-123"     -123
+	"%s"       "-123"     "-123"
+	"%2s"      "-123"     "-1"
+	"%2d"      "-123"     -1
+	"%s"       "foobar"   "foobar"
+	"%3s"      "foobar"   "foo"
+	"%:as"     "foobar"   "foob"
+	"f%sar     "foobar    "oob"
+

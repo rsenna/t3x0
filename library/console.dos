@@ -1,0 +1,115 @@
+! DOS Console Interface
+! Nils M Holm, 2023,2024
+! In the public domain / 0BSD license
+
+! needs: t3x
+
+module console;
+
+ length(s) return t3x.memscan(s, 0, 32767);
+
+ public writes(s) t3x.write(T3X.SYSOUT, s, length(s));
+
+ public wrch(c) do var b::1;
+	b::0 := c;
+	t3x.write(T3X.SYSOUT, b, 1);
+ end
+
+ var	Regs[T3X.REG86];
+ var	Vmode;
+ var	Mdelay;
+
+ public setup(p) do
+	! Some BIOSes need this
+	Regs[T3X.REG_AX] := 0x0F00;	! get video mode
+	t.intr86(0x10, regs);
+	Vmode := Regs[T3X.REG_AX] & 0xff;
+ end
+
+ public shutdown() ;
+
+ public move(x, y) do
+	Regs[T3X.REG_AX] := 0x0200;	! move cursor
+	Regs[T3X.REG_BX] := 0x0000;	! page 0
+	Regs[T3X.REG_DX] := y << 8 | x;	! coordinates
+	t.intr86(0x10, regs);
+ end
+
+ scrollfn(ax) do
+	Regs[T3X.REG_AX] := ax;
+	Regs[T3X.REG_BX] := 0x0700;	! fill with white on black
+	Regs[T3X.REG_CX] := 0x0000;	! upper left corner = 0/0
+	Regs[T3X.REG_DX] := 0x184F;	! lower right corner = 24/79
+	t.intr86(0x10, regs);
+ end
+
+ public clrscr() do
+	scrollfn(0x0600);		! scroll up zero lines (clear screen)
+	move(0, 0);
+ end
+
+ public scroll() do
+	scrollfn(0x0601);		! scroll up one line
+ end
+
+ public rscroll() do
+	scrollfn(0x0701);		! scroll down one line
+ end
+
+ getcpos(px, py, cs) do var dx;
+	Regs[T3X.REG_AX] := 0x0300;	! gets cursor pos and size
+	Regs[T3X.REG_BX] := 0x0000;	! page 0
+	t.intr86(0x10, regs);
+	dx := Regs[T3X.REG_DX];
+	px[0] := dx & 0xff;
+	py[0] := dx >> 8;
+	cs[0] := Regs[T3X.REG_CX];
+ end
+
+ public clreol() do var x, y, dummy;
+	getcpos(@x, @y, @dummy);
+	Regs[T3X.REG_AX] := 0x0A20;	! write blank character
+	Regs[T3X.REG_BX] := 0x0000;	! page 0
+	Regs[T3X.REG_CX] := 80-x;	! number of chars to write
+	t.intr86(0x10, regs);
+	move(x, y);
+ end
+
+ setsize(cs) do
+	Regs[T3X.REG_AX] := 0x0100 | Vmode;	! set cursor size
+	Regs[T3X.REG_CX] := cs;			! top, bottom scan line
+	t.intr86(0x10, regs);
+ end
+
+ public csroff() do var x, y, cs;
+	getcpos(@x, @y, @cs);
+	setsize(cs | 0x2000);		! invisible mode
+ end
+
+ public csron() do var x, y, cs;
+	getcpos(@x, @y, @cs);
+	setsize(cs & 0x1fff);		! normal mode
+ end
+
+ public getkey() do var c;
+	Regs[T3X.REG_AX] := 0x0000;	! wait for key stroke
+	t.intr86(0x16, regs);
+	return Regs[T3X.REG_AX] & 0xff;
+ end
+
+ public pollkey() do var f;
+	Regs[T3X.REG_AX] := 0x0100;	! check for key stroke
+	f := t.intr86(0x16, regs);
+	if (f & T3X.REG86_ZF = 0)
+		return getkey();
+ end
+
+ public calibrate(m) Mdelay := m;
+
+ public wait(n) do var i, j;
+	for (i=0, n)
+		for (j=0, Mdelay)
+			;
+ end
+
+end

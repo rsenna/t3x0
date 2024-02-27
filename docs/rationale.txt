@@ -1,0 +1,150 @@
+
+
+	Design Decisions in the T3X/0 Language
+	--------------------------------------
+
+	T3X/0 is an attempt to find the sweet spot between the full
+	T3X Release 7 language, as designed in the early 2000's, and
+	the much more minimal T3X9 language, as devised in 2017.
+
+	Omissions from T3X Release 7 (T3Xr7)
+	------------------------------------
+
+	Object System
+
+	The T3X object system has been removed and replaced by a
+	much simpler module system. Unlike T3Xr7 classes T3X/0
+	modules are not instantiatable, so there cannot be multiple
+	instances of the same module. T3X/0 modules cannot import
+	other modules.
+
+	Rationale: instantiation was rarely used. The most prominent
+	example was the IOSTREAM class, which was also rarely used.
+	Nested modules were used, but are hard to implement on
+	systems with limited memory.
+
+	Separate Compilation and External Linking
+
+	T3X/0 does not support separate compilation and external
+	linking on all supported platforms, so this can no longer
+	considered to be a language feature.
+
+	Rationale: T3X programs tend to be short and fit in a single
+	file.
+
+	Runtime Classes
+
+	Some runtime classes of the T3Xr7 language are no longer
+	present. The classes removed from the core language include
+	the IOStream class, the System class, the TTYCtl class, the
+	Util class, and the Xmem class.
+
+	A replacement module exists for the IOStream class. The other
+	classes may be implemented as language extentions.
+
+	The String module was refactored to remove some of the more
+	heavyweight functions (PARSE, FORMAT) from it.
+
+	Rationale: the core language should be kept small and portable.
+
+	Constant Expression Syntax
+
+	The constant expression syntax has been simplified and is
+	now limited to constants, integers, and single instances of
+	the the *, *, |, and unary - operators.
+
+	Rationale: Other operators or more complex expressions were
+	almost never used, and the constant expression semantics of
+	T3Xr7 was a mess.
+
+	Addresses of Global Vectors in Static Tables
+
+	Addresses of global vectors cannot be included in static tables,
+	i.e. the following code will be flagged by the T3X/0 compiler:
+
+	VAR s::100;
+	DO VAR v; v := [@s]; END
+
+	Rationale: The different memory model of T3X/0 would introduce
+	an additional level of redirection. Given
+
+	VAR s::100;
+	DO VAR v; v := [@s]; END
+
+	V[0] equals S in T3Xr7 and V[0][0] would be equal to S in T3X/0.
+	Therefore, the notation [@vector] is not allowed in T3X/0. In
+	order to include the address of a vector in a table, a dynamic
+	table has to be used (this also works in T3Xr7):
+
+	VAR s::100;
+	DO VAR v; v := [(s)]; END
+
+	Additions to T3X9
+	-----------------
+
+	Intrinsic functions were replaced by a simple module system
+	and inline (machine-code) functions.
+
+	Rationale: the module system is more flexible, allows to reuse
+	frequently-reinvented code, and inline functions make the
+	compiler more portable by moving machine-specific parts to an
+	external module.
+
+	The unsigned operators (./, .<, etc) were added.
+
+	Rationale: they are necessary on 16-bit systems.
+
+	Additions to T3Xr7
+	------------------
+
+	Packed vectors can now contain strings, allowing to write
+	PACKED ["FOO"] instead of PACKED['F','O','O'].
+
+	Rationale: Why has this not been added earlier?
+
+	Summary
+	-------
+
+	                        T3Xr7       T3X/0       T3X9
+	                        --------    --------    --------
+
+	Object System           Yes         No          No
+
+	Modules                 Yes         Simple      No
+
+	Unsigned Operators      Yes         Yes         No
+
+	Constant Expressions    Yes         Simple      Simple
+
+	Intrinsic Functions     No          No          Yes
+
+	Separate Compilation    Yes         Limited     No
+
+	Extern Functions        Yes         Yes         No
+
+	Inline Functions        No          YES         No
+
+	Strings in Bytevectors  No          YES         No
+
+	Classes / Modules
+
+	  T3X Core              Yes         Yes         Subset
+
+	  String                Yes         Yes         No
+
+	  Format and Parse      String      Yes         No
+
+	  Memory                Yes         Yes         No
+
+	  Char                  Yes         Yes         No
+
+	  IOStream              Yes         Yes         No
+
+	  TTYCtl                Yes         No          No
+
+	  System                Yes         No          No
+
+	  Xmem                  Yes         No          No
+
+	  Util                  Yes         No          No
+

@@ -1,0 +1,1112 @@
+
+
+        ################ ############ ######   ######
+        ##            ## ##        ##  ##  ## ##  ##
+        ######    ###### #######   ##   ##  ###  ##
+            ##    ##        ##    ##     ##     ##
+            ##    ##     #######   ##   ##  ###  ##
+            ##    ##     ##        ##  ##  ## ##  ##
+            ########     ############ ######   ######
+
+	----==[ A MINIMAL PROCEDURAL LANGUAGE ]==----
+
+
+	This document describes the "new" T3X/0 language as defined
+	in September 2022.
+
+
+	 PROGRAM
+	*-------*
+
+	A program is a set of declarations followed by a compound
+	statement. Here is the smallest possible T3X program:
+
+		DO END
+
+
+	 COMMENTS
+	*--------*
+
+	A comment is started with an exclamation point (!) and extends
+	up to the end of the current line. Example:
+
+		DO END  ! Do nothing
+
+
+	 MODULES
+	*-------*
+
+	-----[ MODULE name; declarations END ]--------------------------
+
+	Create data objects and functions that are local to the named
+	module. Entities defined inside of the module will not be
+	visible outside of the module except when defined "public" (see
+	PUBLIC). However, entities defined earlier in the program are
+	visible inside of the module, so they may not be redefined
+	inside of the module.
+
+	Public functions and data objects can be imported into a
+	program by using the USE statement.
+
+	Modules do not nest and modules cannot USE other modules.
+
+	The last declaration in a module may be a compound statement.
+	In this case, the statements in the compound statement will
+	execute once,
+
+	- either at the beginning of program execution when the module
+	  is an integral part of a program (in the same source file)
+
+	- or when the module is USEd for the first time when the module
+	  is contained in a separate file.
+
+	When USEing a module that is contained in a separate file, the
+	name in the USE statement must name the file and not the module.
+	It is a good idea to name the file after the module (see USE).
+
+	Example: MODULE writeline;
+		  length(s) RETURN t.memscan(s, 0, 32767);
+		  newln() DO VAR b::3;
+		    t.write(T3X.SYSOUT, t.newline(b), length(b));
+		  END
+		  PUBLIC writeln(s) do
+		    t.write(T3X.SYSOUT, s, length(s));
+		    newln();
+		  END
+	         END
+
+
+	-----[ PUBLIC declaration; ]------------------------------------
+
+	Every constant or function declared inside of a module can be
+	made "public" by prefixing it with the PUBLIC keyword. Public
+	declarations will be made visible outside of the module when
+	importing (USEing) the module. For example, declaring the
+	public entity FOO inside of the module BAR will make the entity
+	visible as BAR.FOO after importing the module.
+
+	Only function definitions (including EXTERN and INLINE), CONST
+	declarations, and STRUCT declarations can be made public.
+
+	Examples: PUBLIC CONST MAX = 99;
+		  PUBLIC STRUCT POINT = P_X, P_Y;
+		  PUBLIC foo();
+
+
+	       USE name;
+	-----[ USE name: alias; ]---------------------------------------
+	       USE name: name;
+
+	Locate the named module. When the module is already present
+	(because it was defined earlier in the same program or because
+	it was USEd before), do nothing. When the module is not present,
+	load it from a file named "name.t". If that fails, try again
+	to load the file from a predefined internal location (such as
+	directories, disk drives, etc).
+
+	When an "alias" is specified, the public entities of the module
+	will be available under the name of the module as well as under
+	the name of the alias. For example, the public WRITE function
+	will be available as T3X.WRITE and T.WRITE after importing the
+	T3X module using the statement
+
+	USE t3x: t;
+
+	When the module name and the name of the file containing the
+	module disagree, the public entities will become visible under
+	the name of the module and not under the name of the file. For
+	example the public entity FOO contained in the module BAR which
+	is in turn contained in the file QUUX will become visible as
+	BAR.FOO after importing it using
+
+	USE quux;
+
+	To make it available as QUUX.FOO, the alias can be chosen to be
+	the same as the name:
+
+	USE quux: quux;
+
+	Example: USE t3x: t;
+		 DO t.write(T3X.SYSOUT, "Hello!\n", 7); END
+
+
+	 DECLARATIONS
+	*------------*
+
+	-----[ CONST name = cvalue, ... ; ]-----------------------------
+
+	Assign names to constant values.
+
+	Example: CONST false = 0, true = %1;
+
+
+	       VAR name, ... ;
+	-----[ VAR name[cvalue], ... ; ]--------------------------------
+	       VAR name::cvalue, ... ;
+
+	Define variables, vectors, and byte vectors, respectively.
+	Different definitions may be mixed. Vector elements start at
+	an index of 0.
+
+	Example: VAR stack[STACK_LEN], ptr;
+
+	-----[ STRUCT name = name_1, ..., name_N; ]---------------------
+
+	Shorthand for CONST name_1 = 0, ..., name_N = N-1, name = N;
+	Used to impose structure on vectors and byte vectors.
+
+	Example: STRUCT POINT = PX, PY, PCOLOR;
+		 VAR    p[POINT];
+
+
+	-----[ DECL name(cvalue), ... ; ]-------------------------------
+
+	Declare functions whose definitions follow later, where the
+	cvalue is the number of arguments. Used to implement mutual
+	recursion.
+
+	Example: DECL odd(1);
+		 even(x) RETURN x=0-> 1: odd(x-1);
+		 odd(x) RETURN x=1-> 1: even(x-1);
+
+
+	-----[ EXTERN name(cvalue), ... ; ]-----------------------------
+
+	Declare functions whose definitions are contained in external
+	object files. Cvalue is the number of arguments. The external
+	functions may be implemented in a language other than T3X.
+
+	This type of definition works only on platforms where T3X
+	generates object files instead of executables.
+
+	The external function must have the same name as the name
+	specified in EXTERN with a "t3x_" prefix attached. The calling
+	convention is left-to-right, i.e. the parameters will appear
+	in the opposite order than generated by the C language.
+
+	Example: EXTERN chdir(1);
+
+
+	-----[ INLINE name(cvalue) = [ byte , ... ], ... ; ]------------
+
+	Define functions whose code is specified as machine code in byte
+	vectors. Cvalue is the number of arguments.
+
+	Example: INLINE nop(0) = [ 0xC9 ]; ! RET on a Z80
+
+
+	-----[ name(name_1, ...) statement ]----------------------------
+
+	Define function "name" with arguments "name_1", ... and a
+	statement as its body. The number of arguments must match
+	any previous DECL of the same function.
+
+	The arguments of a function are only visible within the
+	(statement) of the function.
+
+	Example: hello(s, x) DO VAR i;
+		    FOR (i=0, x) DO
+			writes(s);
+			writes("\n");
+		    END
+		 END
+
+	(WRITES writes a string; it is defined later in this text.)
+
+
+	 TYPE CHECKING
+	*-------------*
+
+	The operations of assignment of a value, access to vector
+	elements (subscript), procedure call, and module import are
+	limited to specific types of objects as outlined in the
+	following. Most of these operations are limited to one
+	specific type, but the scalar variable allows for additional
+	operations.
+
+	           Assignment  Subscript  Call       Import
+	Constant   -           -          -          -  
+	Structure  -           -          -          -  
+	Scalar     Yes         Yes        Yes (*)    -  
+	Vector     -           Yes        -          -  
+	Procedure  -           -          Yes        -  
+	Module     -           -          -          Yes
+
+	(*) Indirect procedure calls require the CALL keyword.
+
+
+	 STATEMENTS
+	*----------*
+
+	-----[ name := expression; ]------------------------------------
+
+	Assign the value of an expression to a variable.
+
+	Example: DO VAR x; x := 123; END
+
+
+	-----[ name[value]... := value; ]-------------------------------
+	       name::value := value;
+
+	Assign the value of an expression to an element of a vector
+	or a byte vector. Multiple subscripts may be applied to to a
+	vector:
+
+		vec[i][j]... := i*j;
+
+	In general, VEC[i][j] denotes the j'th element of the i'th
+	element of VEC.
+
+	Note that the :: operator is right-associative, so v::x::i
+	equals v::(x::i). This is particularly important when mixing
+	subscripts, because
+
+		vec[i]::j[k] := 0;
+
+	would assign 0 to the j[k]'th element of vec[i]. (This makes
+	sense, because vec[i]::j would not deliver a valid address.)
+
+
+	-----[ name();                  ]-------------------------------
+	       name(expression_1, ...);
+
+	Call the function with the given name, passing the values of the
+	expressions to the function. An empty set of parentheses is used
+	to pass zero arguments. The result of the function is discarded.
+
+	For further details see the description of function calls in the
+	section on expressions.
+
+
+	-----[ IF (condition) statement_1           ]-------------------
+	IE (condition) statement_1 ELSE statement_2
+
+	Both of these statements run statement_1, if the given
+	condition is true.
+
+	In addition, IE/ELSE runs statement_2, if the condition is
+	false, while IF just passes control to the subsequent statement
+	in this case.
+
+	Example: IE (1)
+		     IF (0) RETURN 2;
+		 ELSE
+		     RETURN 3;
+
+	The example never returns anything, because only an IE statement
+	can have an ELSE branch. There is no "dangling else" problem.
+
+
+	-----[ WHILE (condition) statement ]----------------------------
+
+	Repeat the statement while the condition is true. When the
+	condition is not true initially, never run the statement.
+
+	Example: ! Count from 1 to 10
+		 DO VAR i;
+		     i := 1;
+		     WHILE (i < 11)
+			i := i+1;
+		 END
+
+
+	---[ FOR (name=expression_1, expression_2, cvalue) statement ]--
+	     FOR (name=expression_1, expression_2) statement
+
+	Assign the value of expression_1 to name, then compare name to
+	expression_2. If cvalue is not negative, repeat the statement
+	while name < expression_2. Otherwise repeat the statement while
+	name > expression_2. After running the statement, add cvalue
+	to name. Formally:
+
+		name := expression_1;
+		WHILE ( cvalue >= 0 /\ name < expression \/
+		        cvalue <  0 /\ name > expression )
+ 		DO
+		    statement;
+		    name := name + cvalue;
+		END
+
+	When the cvalue is omitted, it defaults to 1.
+
+	Examples: DO VAR i;
+		      FOR (i=1, 11);     ! count from 1 to 10
+		      FOR (i=10, 0, %1); ! count from 10 to 1
+		  END
+
+
+	-----[ LEAVE; ]-------------------------------------------------
+
+	Leave the innermost WHILE or FOR loop, passing control to the
+	first statement following the loop.
+
+	Example: DO VAR i;  ! Count from 1 to 50
+		     FOR (i=1, 100) IF (i=50) LEAVE;
+		 END
+
+
+	-----[ LOOP; ]--------------------------------------------------
+
+	Re-enter the innermost WHILE or FOR loop. WHILE loops are
+	re-entered at the point where the condition is tested, and
+	FOR loops are re-entered at the point where the counter is
+	incremented.
+
+	Example: DO VAR i;    ! This program never prints X
+		     FOR (i=1, 10) DO
+			 LOOP;
+			 T.WRITE(T3X.SYSOUT, "x", 1);
+		     END
+		 END
+
+
+	-----[ RETURN expression; ]-------------------------------------
+	       RETURN;
+
+	Return a value from a function. For further details see the
+	description of function calls in the section on expressions.
+	When no expressio is specified the return value is 0.
+
+	Example: inc(x) RETURN x+1;
+
+
+	-----[ HALT cvalue; ]-------------------------------------------
+	       HALT;
+
+	Halt program and, if possible, return the given status code to
+	the operating system. When no cvalue is specified, it defaults
+	to 0.
+
+	Example: HALT 1;
+
+
+	-----[ DO statement ... END                 ]-------------------
+	       DO declaration ... statement ... END
+
+	Compound statement of the form DO ... END are used to place
+	multiple statements in a context where only a single statement
+	is expected, like selection, loop, and function bodies.
+
+	A compound statement may declare its own local variables,
+	constant, and structures (using VAR, CONST, or STRUCT). A
+	local variable of a compound statement is created and
+	allocated at the beginning of the statement is ceases to
+	exist at the end of the statement.
+
+	Note that the form
+
+		DO declaration ... END 
+
+	also exists, but is essentially an empty statement.
+
+	Example: DO var i, x;  ! Compute factorial of 7
+		    x := 1;
+		    FOR (i=1, 8) x := x*i;
+		 END
+
+
+	-----[ DO END ]-------------------------------------------------
+	       ;
+
+	These are both empty statements or null statements. They do not
+	do anything when run and may be used as placeholders where a
+	statement would be expected. They are also used to show that
+	nothing is to be done in a specific situation, like in
+
+		IE (x = 0)
+		     ;
+		ELSE IE (x < 0)
+		     statement
+		ELSE
+		     statement
+
+	Examples: FOR (i=0, 100000) DO END  ! waste some time
+
+
+	 EXPRESSIONS
+	*-----------*
+
+	An expression is a variable or a literal or a function call or
+	a set of operators applied to any of these. There are unary,
+	binary, and ternary operators.
+
+	Examples: -a      ! negate a
+		  b*c     ! product of b and c
+		  p.<q    | is p unsigned less than q?
+		  x->y:z  ! if x then y else z
+
+	In the following, the symbols X, Y, and Z denote variables or
+	literals.
+
+	These operators exist (P denotes precedence, A associativity):
+
+	+--------------------------------------------------------+
+	|  OPERATOR | P | A | DESCRIPTION                        |
+	|===========+============================================|
+	| X[Y]      | 9 | L | the Y'th element of the vector X   |
+	| X::Y      | 9 | R | the Y'th byte of the byte vector X |
+	|-----------+---+---+------------------------------------|
+	| -X        | 8 | - | the negative value of X            |
+	| ~X        | 8 | - | the bitwise inverse of X           |
+	| \X        | 8 | - | the logical NOT of X               |
+	| @X        | 8 | - | the address of X                   |
+	|-----------+---+---+------------------------------------|
+	| X*Y       | 7 | L | the product of X and Y             |
+	| X/Y       | 7 | L | the integer quotient of X and Y    |
+	| X.*Y      | 7 | L | the unsigned product of X and Y    |
+	| X./Y      | 7 | L | the unsigned quotient of X and Y   |
+	| X mod Y   | 7 | L | the unsigned remainder of X and Y  |
+	|-----------+---+---+------------------------------------|
+	| X+Y       | 6 | L | the sum of X and Y                 |
+	| X-Y       | 6 | L | the difference between X and Y     |
+	|-----------+---+---+------------------------------------|
+	| X&Y       | 5 | L | the bitwise AND of X and Y         |
+	| X|Y       | 5 | L | the bitwise OR of X and Y          |
+	| X^Y       | 5 | L | the bitwise XOR of X and Y         |
+	| X<<Y      | 5 | L | X shifted to the left by Y bits    |
+	| X>>Y      | 5 | L | X shifted to the right by Y bits   |
+	|-----------+---+---+------------------------------------|
+	| X<Y       | 4 | L | %1, if X is less than Y, else 0    |
+	| X>Y       | 4 | L | %1, if X is greater than Y, else 0 |
+	| X<=Y      | 4 | L | %1, if X is less/equal Y, else 0   |
+	| X>=Y      | 4 | L | %1, if X is greater/equal Y, else 0|
+	| X.<Y      | 4 | L | like X<Y, but unsigned             |
+	| X.>Y      | 4 | L | like X>Y, but unsigned             |
+	| X.<=Y     | 4 | L | like X<=Y, but unsigned            |
+	| X.>=Y     | 4 | L | like X>=Y, but unsigned            |
+	|-----------+---+---+------------------------------------|
+	| X=Y       | 3 | L | %1, if X equals Y, else 0          |
+	| X\=Y      | 3 | L | %1, if X does not equal Y, else 0  |
+	|-----------+---+---+------------------------------------|
+	| X/\Y      | 2 | L | if X then Y else 0                 |
+	|           |   |   | (short-circuit logical AND)        |
+	|-----------+---+---+------------------------------------|
+	| X\/Y      | 1 | L | if X then X else Y                 |
+	|           |   |   | (short-circuit logical OR)         |
+	|-----------+---+---+------------------------------------|
+	| X->Y:Z    | 0 | R | if X then Y else Z                 |
+	+--------------------------------------------------------+
+
+	Higher precedence means that an operator binds stronger, e.g.
+	-X::Y actually means -(X::Y).
+
+	Left-associativity (L) means that x+y+z = (x+y)+z and
+	right-associativity (R) means that x::y::z = x::(y::z).
+
+
+	 CONDITIONS
+	*----------*
+
+	A condition is an expression appearing in a condition context,
+	like the condition of an IF or WHILE statement or the first
+	operand of the X->Y:Z operator.
+
+	In an expression context, the value 0 is considered to be
+	"false", and any other value is considered to be true. For
+	example:
+
+		X=X  is true
+		1=2  is false
+		"x"  is true
+		5>7  is false
+
+	The canonical truth value, as returned by 1=1, is %1.
+
+
+	 FUNCTION CALLS
+	*--------------*
+
+	When a function call appears in an expression, the result of
+	the function, as returned by RETURN is used as an operand.
+
+	A function call is performed as follows:
+
+	Each actual argument in the call
+
+		function(argument_1, ...)
+
+	is computed, passed to the function, and then bound to the
+	corresponding formal argument ("argument") of the receiving
+	function. Actual and formal arguments are paired by position.
+	The function then runs its statement, which may produce a value
+	via RETURN. When no RETURN statement exists in the statement, 0
+	is returned.
+
+	Function arguments evaluate from the left to the right, so in
+
+		f(a,b,c);
+
+	A is guaranteed to evaluate before B and C and B is guaranteed
+	to evaluate before C.
+
+	Example: pow(x, y) DO VAR a;
+		     a := 1;
+		     WHILE (y) DO
+			 a := a*x;
+			 y := y-1;
+		     END
+		     RETURN a;
+		 END
+
+		 DO VAR x;
+		     x := pow(2,10);
+		 END
+
+
+	 LITERALS
+	*--------*
+
+	INTEGERS
+
+	An integer is a number representing its own value. Note that
+	negative numbers have a leading '%' sign rather than a '-' sign.
+	While the latter also works, it is, strictly speaking, the
+	application of the '-' operator to a positive number, so it may
+	not appear in cvalue contexts.
+
+	Integers may have a '0x' prefix (after the '%' prefix, if
+	that also exists). In this case, the subsequent digits will
+	be interpreted as a hexa-decimal number (with the letters 'a'-'f'
+	or 'A'-'F' serving as the digits 10 through 15).
+
+	The range of valid integers on 16-bit platforms is from -32767
+	to 32767.
+
+	Examples: 0
+		  12345
+		  %1
+		  0xfff
+		  %0xA5
+
+
+	CHARACTERS
+
+	Characters are integers internally. They are represented by
+	single characters enclosed in single quotes. In addition, the
+	same escape sequences as in strings may be used.
+
+	Examples: 'x'
+		  '\\'
+		  '''
+		  '\e'
+
+
+	STRINGS
+
+	A string is a byte vector filled with characters. Strings are
+	delimited by '"' characters and NUL-terminated internally. All
+	characters between the delimiting double quotes represent
+	themselves. In addition, the following escape sequences may be
+	used to include some special characters:
+
+	\a  BEL  7  Bell
+	\b  BS   8  Backspace
+	\e  ESC 27  Escape
+	\f  FF  12  Form Feed
+	\n  LF  10  Line Feed (newline)
+	\q  "   34  Quote
+	\r  CR  13  Carriage Return
+	\s      32  Space
+	\t  HT   9  Horizontal Tabulator
+	\v  VT  11  Vertical Tabulator
+	\\  \   92  Backslash
+
+	Examples: ""
+		  "hello, world!\n"
+		  "\qhi!\q, she said"
+
+
+	PACKED TABLES
+
+	A packed table is a byte vector literal. It is a set of cvalues
+	delimited by square brackets and separated by commas. Note that
+	string notation is a short and portable, but also limited,
+	notation for byte vectors. However, byte vectors can also
+	contain strings as abbreviations. In this case the characters
+	of the string become members of the byte vector. For instance, 
+	the byte vectors
+
+		"Hello\n"
+		PACKED [ 'H', 'e', 'l', 'l', 'o', 10, 0 ]
+		PACKED [ "Hello", 10, 0 ]
+
+	are identical. Byte vectors can contain any values in the range
+	from 0 to 255.
+
+	Examples: PACKED [ 1 ]
+		  PACKED [ 0, 255 ]
+		  PACKED [ 14, "Hi", 15, 0 ]
+
+
+	TABLES
+
+	A table is a vector literal, i.e. a sequence of literals. It is
+	delimited by square brackets and elements are separated by
+	commas. Table elements can be cvalues, strings, addresses of
+	global variables and functions, and tables. The maximum nesting
+	level for tables is 3 and up to 128 elements may be contained
+	in a flat (non-nested) table.
+
+	Examples: [ 1, 2, 3 ]
+		  [ "5 times -7", %35 ]
+		  [ @variable ]
+		  [ [1,0,0], [0,1,0], [0,0,1] ]
+
+
+	DYNAMIC TABLES
+
+	The dynamic table is a special case of the table in which one
+	or multiple elements are computed at program run time. Dynamic
+	table elements are enclosed in parentheses. E.g. in the table
+
+		[ "x times 7", (x*7) ]
+
+	the value of the second element would be computed and filled
+	in when the table is being evaluated. Note that dynamic table
+	elements are replaced in situ, and remain the same only until
+	they are replaced again.
+
+	Multiple dynamic elements may be enclosed by a single pair of
+	parentheses. For instance, the following tables are the same:
+
+		[(x), (y), (z)]
+		[(x, y, z)]
+
+
+	 CVALUES
+	*-------*
+
+	A cvalue (constant value) is an expression whose value is known
+	at compile time. In full T3X, this is a large subset of full
+	expressions, but in T3X/0, it it limited to the following:
+
+	* integers
+	* characters
+	* constants
+
+	as well as (given that X and Y are one of the above):
+
+	* -X
+	* X*Y
+	* X+Y
+	* X|Y
+
+
+	 NAMING CONVENTIONS
+	*------------------*
+
+	Symbolic names for variables, constants, structures, and
+	functions are constructed from the following alphabet:
+
+	* the characters a-z
+	* the digits 0-9
+	* the special character '_'
+
+	The first character of a name must be non-numeric, the remaining
+	characters may be any of the above.
+
+	Upper and lower case is not distinguished, the symbolic names
+
+		FOO, Foo, foo
+
+	are all considered to be equal.
+
+	By convention,
+
+	* CONST names are all upper-case
+	* STRUCT names are all upper-case
+	* global VAR names are capitalized
+	* local VAR names are all lower-case
+	* function names are all lower-case
+
+	Keywords, like VAR, IF, DO, etc, are sometimes printed in upper
+	case in documentation, but are usually in lower case in actual
+	programs.
+
+
+	 SHADOWING
+	*---------*
+
+	Except for modules, there is a single name space without any
+	shadowing in T3X:
+
+	* all global names must be different
+	* all names in modules must be different from global names
+	  defined earlier
+	* no local name may have the same name as a global name
+	* all local names in the same scope must be different
+	* once a module is closed, the names in it may be reused
+
+	Local names may be re-used in subsequent scopes, e.g.:
+
+		f(x) RETURN x;
+		g(x) RETURN x;
+
+	would be a valid program. However,
+
+		f(x) DO VAR x; END  !!! WRONG !!!
+
+	would not be a valid program, because VAR x; redefines the
+	argument of F.
+
+	Similarly,
+
+		VAR g;
+		MODULE foo; VAR g; END
+
+	would not be valid, because the G inside of the module redefines
+	the global G, but
+
+		MODULE foo; VAR g; END
+		VAR g;
+
+	would compile fine, because the module-level G is no longer
+	visible when the global G is declared.
+
+	Note that function declarations do not shadow DECL statements,
+	but transform them into function declarations.
+
+
+	 BUILT-IN FUNCTIONS
+	*------------------*
+
+	The following built-in functions exist in T3X/0. They are mostly
+	identical to the functions of the core class of the original T3X
+	language. The T3X/0 core module has to be imported using the
+	statement
+
+		USE t3x: t;
+
+	Functions are typically addressed with the alias "t", e.g.
+	t.bpw(), but constants and structures are typically addressed
+	with the full module name, e.g.: T3X.SYSOUT. This is merely a
+	convention, though.
+
+
+	MEMORY FUNCTIONS
+
+	-----[ T.BPW() ]------------------------------------------------
+
+	Return the number of bytes per machine word on the processor
+	running the program.
+
+	Example: t.memcopy(d, s, n*t.bpw()); ! copy n machine words
+
+
+	-----[ T.MEMCOMP(b1, b2, len) ]---------------------------------
+
+	Compare the first LEN bytes of the byte vectors B1 and B2.
+	Return the difference of the first pair of mismatching bytes.
+	A return code of 0 means that the compared regions are equal.
+
+	Example: t.memcomp("aaa", "aba", 3)  ! gives 'b'-'a' = %1
+
+
+	-----[ T.MEMCOPY(bs, bd, len) ]---------------------------------
+
+	Copy LEN bytes from the byte vector BS (source) to the byte
+	vector BD (destination). Return 0. The regions may overlap.
+
+	Example: DO VAR b::100; t.memcopy(b, "hello", 5); END
+
+
+	-----[ T.MEMFILL(bv, b, len) ]----------------------------------
+
+	Fill the first LEN bytes of the byte vector BV with the byte
+	value B. Return 0.
+
+	Example: DO VAR b::100; t.memfill(b, 0, 100); END
+
+
+	-----[ T.MEMSCAN(bv, b, len) ]----------------------------------
+
+	Locate the first occurrence of the byte value B in the first LEN
+	bytes of the byte vector BV and return its offset in the vector.
+	When B does not exist in the given region, return %1.
+
+	Example: t.memscan("aaab", 'b', 4)  ! returns 3
+
+
+	INPUT/OUTPUT FUNCTIONS
+
+	-----[ T.CREATE(path) ]-----------------------------------------
+
+	Create a file with the given PATH, open it, and return a file
+	descriptor for accessing the file in write-only mode. In case of
+	an error, return -1.
+
+	Example: t.create("new-file");
+
+
+	-----[ T.OPEN(path, mode) ]-------------------------------------
+
+	Open file PATH in the given MODE, where the following modes
+	exist:
+
+	Mode        Access       When Exists  When Non-Existing
+	T3X.OREAD   read-only    open         fail
+	T3X.OWRITE  write-only   overwrite    create
+	T3X.ORDWR   read-write   open         fail
+	T3X.OAPPND  append-only  open         fail
+
+	Return a file descriptor or -1 in case of an error.
+
+	Example: t.open("existing-file", T3X.OREAD);
+
+
+	-----[ T.CLOSE(fd) ]--------------------------------------------
+
+	Close the file descriptor FD. Return 0 for success and -1 in
+	case of an error.
+
+	Example: DO var fd;
+		     fd := t.create("file");
+		     if (fd >= 0) t.close();
+		 END 
+
+
+	-----[ T.READ(fd, buf, len) ]-----------------------------------
+
+	Read up to LEN characters from the file descriptor FD into the
+	buffer BUF. Return the number of characters actually read.
+	Return %1 in case of an error.
+
+	Example: DO b::100; t.read(0, b, 99); END
+
+
+	-----[ T.WRITE(fd, buf, len) ]----------------------------------
+
+	Write LEN characters from the buffer BUF to the file descriptor
+	FD. Return the number of characters actually written. Return %1
+	in case of an error.
+
+	Example: t.write(1, "hello, world!\n", 14);
+
+
+	-----[ T.SEEK(fd, where, how) ]--------------------------------
+
+	Move the file pointer of the file FD to the specified position.
+	The file pointer indicated the position in the file where the
+	next read or write operation will take effect. WHERE is an
+	unsigned number. HOW may be one of the following:
+
+	T3X.SEEK_SET  seek forward from beginning of file
+	T3X.SEEK_FWD  seek forward from current position
+	T3X.SEEK_END  seek backward from end of file
+	T3X.SEEK_BCK  seek backward from current position
+
+	Return 0 upon success and -1 in case of an error.
+
+	This function is not available on CP/M.
+
+	Example: t.seek(fd, 0, SEEK_END);  ! go to end of file
+
+
+	-----[ T.RENAME(path, new) ]------------------------------------
+
+	Rename the file given in PATH to NEW. Return 0 for success and
+	-1 in case of an error.
+
+	Example: t.rename("old-name", "new-name");
+
+
+	-----[ T.REMOVE(path) ]-----------------------------------------
+
+	Remove the file given in PATH. Return 0 for success and -1 in
+	case of an error.
+
+	Example: t.remove("temp-file");
+
+
+	-----[ T.TRUNC(fd) ]--------------------------------------------
+
+	Truncate file associated with file descriptor FD at the current
+	position. Return 0 for success and -1 in case of an error.
+
+	This function is not available on CP/M.
+
+	Example: t.trunc(fd);
+
+
+	MISCELLANEOUS FUNCTIONS
+
+	       T.BREAK(@v)
+	-----[ T.BREAK(0) ]---------------------------------------------
+	       T.BREAK(1)
+
+	Intercept keyboard break signals (SIGINT on Unix and BREAK on
+	DOS) and set the variable V to 0. Whenever a keyboard break
+	signal is received, the value of V will change to 1, but the
+	break signal will not terminate program execution.
+
+	T.break(0) will reset the keyboard break action to the default
+	(abort program execution). T.break(1), will check the keyboard
+	break status. This makes sense only on DOS, where the break
+	status is only checked under certain conditions. T.BREAK(1) is
+	such a condition.
+
+	This function is not available on CP/M.
+
+	This function is not implemented in the static FreeBSD backend,
+	because signal() is too hard to emulate by now. It is available
+	in the generic Unix backend, though.
+
+	Example: DO VAR brk;
+		     t.break(@brk);
+		     while (brk = 0)
+		         t.break(1);
+		     t.write(T3X.SYSOUT, "OK\r\n", 4);
+		     t.break(0);
+		 END
+
+
+	-----[ T.GETARG(n, buffer, count) ]-----------------------------
+
+	Retrieve the N'th argument from the program's command line and
+	copy up to COUNT-1 characters of it to the given BUFFER. Delimit
+	the extracted string with a NUL character. Return the number
+	of characters copied. When no N'th argument exists, return -1.
+	The first argument is at N=1.
+
+	Example: t.getarg(1, file, 11);
+
+
+	-----[ T.NEWLINE(buffer) ]--------------------------------------
+
+	Fill the given BUFFER with a sequence of characters that will
+	advance the cursor to the beginning of the next line on the
+	operating system running the program. Return BUFFER. The buffer
+	must have a size of at least three characters.
+
+	Example: DO VAR b::3; t.newline(b); END
+
+
+	8086 INTERRUPT SERVICE REQUEST
+
+	This function is only available in the DOS/8086 backend of the
+	T3X/0 compiler.
+
+
+	-----[ T.INTR86(int, regs) ]------------------------------------
+
+	Trigger software interrupt INT with registers set to the values
+	in the REGS structure. REGS is defined as REGS[T3X.REG86] and
+	contains the following members: REG_AX, REG_BX, REG_CX, REG_DX,
+	REG_SI, and REG_DI.
+
+	T.INTR86 returns the flags register of the 8086. The constants
+	REG86_CF (carry flag) and REG86_ZF (zero flag) can be used to
+	mask the values of flags most commonly used by service routines
+	to indicate success or failure.
+
+	Do not use this procedure to invoke service routines that change
+	any of the segment registers! (Like "get interrupt vector".)
+	Doing so will cause all kinds of unpleasant effects, from
+	deleted or altered data to spontaneous crashes or reboots.
+
+	Example: DO VAR r[T.REG86];
+		     r[T.REG_AX] := 0x0900;
+		     r[T.REG_DX] := "hello, world!\r\n$";
+		     t.intr86(0x21, r);
+		 END
+
+
+	CP/M BDOS FUNCTIONS
+
+	These functions are only available in the CP/M backend of the
+	T3X/0 compiler.
+
+
+	-----[ T.BDOS(c, ade)   ]---------------------------------------
+	       T.BDOSHL(c, ade)
+
+	Call the CP/M BDOS with the value of C (modulo 256) in the C
+	register and the value of ADE in the DE and (modulo 256) in the
+	A register.
+
+	T.BDOS returns the value returned by the BDOS in the A register
+	and T.BDOSHL returns the value returned in the HL register.
+
+	Example: t.bdos(9, "Hello, World\r\n!$");
+
+
+	 VARIADIC FUNCTIONS
+	*------------------*
+
+	T3X implements variadic functions (i.e. functions of a variable
+	number of arguments) using dynamic tables. For instance, the
+	following function returns the sum of a vector of arguments:
+
+		sum(k, v) DO var i, n;
+		    n := 0;
+		    FOR (i=0, k)
+			n := n+v[i];
+		    RETURN n;
+		END
+
+	Its is an ordinary function returning the sum of a vector. It
+	can be considered to be a variadic function, because a dynamic
+	table can be passed to it in the V argument:
+
+		sum(5, [(a,b,c,d,e)])
+
+
+	 RESERVED WORDS
+	*--------------*
+
+	The following words are reserved (cannot be used to name data
+	objects, functions, or modules) in the T3X language:
+
+	CALL CONST DECL DO ELSE END EXTERN FOR HALT IE IF
+	INLINE LEAVE LOOP MOD MODULE PACKED PUBLIC RETURN
+	STRUCT USE VAR WHILE
+
+	In addition the name T3X is reserved for the T3X core module
+	and, by convention, the name T is used as an alias for T3X.
+
+
+	 EXAMPLE PROGRAM
+	*---------------*
+
+	use t3x: t;
+
+	var ntoa_buf::100;
+	
+	ntoa(x) do var i, k;
+	        if (x = 0) return "0";
+	        i := 99;
+	        ntoa_buf::i := 0;
+	        k := x<0-> -x: x;
+	        while (k > 0) do
+	                i := i-1;
+	                ntoa_buf::i := '0' + k mod 10;
+	                k := k/10;
+	        end
+	        if (x < 0) do
+	                i := i-1;
+	                ntoa_buf::i := '-';
+	        end
+	        return @ntoa_buf::i;
+	end
+	
+	length(s) return t.memscan(s, 0, 32767);
+	
+	writes(s) t.write(1, s, length(s));
+	
+	fib(n) do var r1, r2, i, t;
+	        r1 := 0;
+	        r2 := 1;
+	        for (i=1, n) do
+	                t := r2;
+	                r2 := r2 + r1;
+	                r1 := t;
+	        end
+	        return r2;
+	end 
+	
+	do var i, b::3;
+	        for (i=1, 11) do
+	                writes(ntoa(fib(i)));
+	                writes(t.newline(b));
+	        end
+	end

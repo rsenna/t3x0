@@ -1,0 +1,643 @@
+; T3X/0 runtime library for {PC,MS,DR,etc}DOS on the 8086
+; Nils M Holm, 2000,2019,2021,2023
+; Public Domain / 0BSD license
+
+	.text	$100
+
+	jmp	start
+
+	; The following definitions MUST start at 0103h
+	; and MUST be kept in this order!
+
+rtlen:	dw	offset end	; 0103 module length for mklib.t
+	db	"T3X"		; 0105
+
+	jmp	t_bpw		; 0108
+	jmp	t_newline	; 010b
+	jmp	t_memcomp	; 010e
+	jmp	t_memcopy	; 0111
+	jmp	t_memfill	; 0114
+	jmp	t_memscan	; 0117
+	jmp	t_getarg	; 011a
+	jmp	t_open		; 011d
+	jmp	t_close		; 0120
+	jmp	t_read		; 0123
+	jmp	t_write		; 0126
+	jmp	t_rename	; 0129
+	jmp	t_remove	; 012c
+	jmp	cmp_eq		; 012f
+	jmp	cmp_ne		; 0132
+	jmp	cmp_lt		; 0135
+	jmp	cmp_gt		; 0138
+	jmp	cmp_le		; 013b
+	jmp	cmp_ge		; 013e
+	jmp	t_seek		; 0141
+	jmp	cmp_ult		; 0144
+	jmp	cmp_ugt		; 0147
+	jmp	cmp_ule		; 014a
+	jmp	cmp_uge		; 014d
+	jmp	t_trunc		; 0150
+	jmp	t_break		; 0153
+	jmp	t_intr86	; 0156
+
+; Call frame layout
+;
+; +-----------------+
+; | argument 1      | <-- BP+2+2N
+; +-----------------+
+; | ...             |
+; +-----------------+
+; | argument N      | <-- BP+4
+; +-----------------+
+; | saved frame     |
+; +-----------------+
+; | return address  | <-- BP, SP
+; +-----------------+
+
+; T.BPW()
+; Return bytes per word on target machine.
+
+t_bpw:
+	mov	ax,2
+	ret
+
+; T.NEWLINE(B)
+; Fill B with newline sequence.
+
+t_newline:
+	push	bp
+	mov	bp,sp
+	mov	di,[bp+4]
+	cld
+	mov	al,$0D
+	stosb
+	mov	al,$0A
+	stosb
+	xor	al,al
+	stosb
+	mov	ax,[bp+4]
+	pop	bp
+	ret
+
+; T.MEMCOMP(R1, R2, N)
+; Compare regions R1 and R2 of size N,
+; return difference between first differing
+; pair of bytes; return 0 if R1=R2
+
+t_memcomp:
+	push	bp
+	mov	bp,sp
+	mov	di,[bp+8]	; r1
+	mov	si,[bp+6]	; r2
+	mov	cx,[bp+4]	; len
+	cmp	si,di
+	jnz	docmp
+	xor	ax,ax
+	jmps	cmpret
+docmp:	inc	cx
+	cld
+	repz
+	cmpsb
+	or	cx,cx
+	jnz	notequ
+	xor	ax,ax
+	jmps	cmpret
+notequ:	mov	al,[di-1]
+	sub	al,[si-1]
+	cbw
+cmpret:	pop	bp
+	ret
+
+; T.MEMCOPY(DEST, SRC, N)
+; Copy N bytes from SRC to DEST;
+; regions may overlap.
+
+t_memcopy:
+	push	bp
+	mov	bp,sp
+	mov	di,[bp+8]	; dest
+	mov	si,[bp+6]	; src
+	mov	cx,[bp+4]	; len
+	cld
+	cmp	di,si
+	jz	endmove		; src == dest
+domove:	jb	nmove		; src < dest ==> normal move
+	std
+	add	si,cx		; start at the end
+	add	di,cx		; for reverse copy
+	dec	si
+	dec	di
+nmove:	rep
+	movsb			; doit
+endmove:pop	bp
+	xor	ax,ax
+	ret
+
+; T.MEMFILL(R, C, N)
+; Fill N bytes starting at R with C.
+
+t_memfill:
+	push	bp
+	mov	bp,sp
+	mov	di,[bp+8]	; r
+	mov	ax,[bp+6]	; c
+	mov	cx,[bp+4]	; n
+	cld
+	rep
+	stosb
+	pop	bp
+	xor	ax,ax
+	ret
+
+; T.MEMSCAN(R, C, N)
+; Find first byte C in region R of size N;
+; return offset of the byte or -1, if C is not in R.
+
+t_memscan:
+	push	bp
+	mov	bp,sp
+	mov	di,[bp+8]	; r
+	mov	dx,di
+	mov	ax,[bp+6]	; c
+	mov	cx,[bp+4]	; n
+	inc	cx
+	cld
+	repnz
+	scasb
+	or	cx,cx
+	jz	notfnd
+	mov	ax,di
+	sub	ax,dx
+	dec	ax
+	jmps	scnret
+notfnd:	mov	ax,-1
+scnret:	pop	bp
+	ret
+
+; T.GETARG(A, BUF, N)
+; Extract up to N-1 characters from A'th command line argument,
+; store the characters in BUF and append a delimiting NUL char.
+; Return the number of characters extracted (excluding the NUL).
+
+t_getarg:
+	push	bp
+	mov	bp,sp
+	mov	cx,[bp+8]	; n
+	dec	cx
+	mov	si,$82		; ptr to command line + 1
+	cld
+nskas:	dec	si		; skip over next argument spaces
+skas:	lodsb			; skip over argument spaces
+	cmp	al,$20
+	jz	skas
+	cmp	al,$09
+	jz	skas
+	cmp	al,$0D		; end of command line
+	jnz	gtarg2
+	mov	ax,-1
+	jmps	endgetarg
+gtarg2:	or	cx,cx		; extract this argument?
+	jz	gtarg3
+	dec	cx
+ska:	lodsb			; skip over argument
+	cmp	al,$20
+	jz	nskas
+	cmp	al,$09
+	jz	nskas
+	cmp	al,$0D
+	jz	nskas
+	jmps	ska
+gtarg3:	mov	di,[bp+6]	; buf
+	mov	cx,[bp+4]	; len
+	xor	bx,bx
+tra:	inc	bx
+	cmp	bx,cx
+	jae	endtra
+	stosb			; transfer argument
+	lodsb
+	cmp	al,$20
+	jz	endtra
+	cmp	al,$09
+	jz	endtra
+	cmp	al,$0D
+	jz	endtra
+	jmps	tra
+endtra:	xor	ax,ax
+	stosb
+	mov	ax,bx
+endgetarg:
+	pop	bp
+	ret
+
+; T.OPEN(NAME, MODE)
+; Open file NAME.
+; If MODE=0 open existing file for reading.
+; If MODE=1 erase and create file.
+; MODE=2 unsupported
+; MODE=3 = MODE=0 and move to EOF.
+
+t_open:
+	push	bp
+	mov	bp,sp
+	mov	ax,[bp+4]	;; mode
+	cmp	ax,1
+	jnz	mode023
+	mov	ax,$3C00	; DOS: create file
+	mov	dx,[bp+6]	; file
+	xor	cx,cx
+	int	$21
+	jnc	opened
+	mov	ax,-1
+	jmps	endopen
+mode023:
+	cmp	ax,0
+	jz	doopen
+	cmp	ax,2
+	jz	doopen3
+	cmp	ax,3
+	jz	doopen3
+	mov	ax,-1
+	jmps	endopen
+doopen3:
+	mov	ax,2
+doopen:
+	or	ax,$3D00	; DOS: open file
+	mov	dx,[bp+6]	; file
+	int	$21
+	jnc	opened
+	mov	ax,-1
+	jmps	endopen
+opened:	cmp	ax,0
+	jge	opened2
+	mov	ax,-1
+	jmps	endopen
+opened2:
+	mov	bx,[bp+4]	; mode
+	cmp	bx,3
+	jnz	endopen
+	push	ax
+	mov	bx,ax
+	mov	ax,$4202	; DOS: move file ptr from EOF
+	xor	cx,cx
+	xor	dx,dx
+	int	$21
+	pop	ax
+	jnc	endopen
+	mov	ax,-1
+endopen:
+	pop	bp
+	ret
+
+; T.CLOSE(FD)
+; Close file descriptor.
+
+t_close:
+	push	bp
+	mov	bp,sp
+	mov	bx,[bp+4]	;; fd
+	mov	ax,$3E00	; DOS: close file
+	int	$21
+	jnc	closeok
+	mov	ax,-1
+	jmps	endclose
+closeok:
+	xor	ax,ax
+endclose:
+	pop	bp
+	ret
+
+; T.READ(FD, BUF, N)
+; Read up to N bytes from FD into BUF.
+
+t_read:
+	push	bp
+	mov	bp,sp
+	mov	ax,$3F00	; DOS: read block
+	mov	bx,[bp+8]	; fd
+	mov	dx,[bp+6]	; buf
+	mov	cx,[bp+4]	; len
+	int	$21
+	jnc	endread
+	mov	ax,-1
+endread:
+	pop	bp
+	ret
+
+
+; T.WRITE(FD, BUF, N)
+; WRITE N bytes from BUF to FD.
+
+t_write:
+	push	bp
+	mov	bp,sp
+	mov	ax,$4000	; DOS: read block
+	mov	bx,[bp+8]	; fd
+	mov	dx,[bp+6]	; buf
+	mov	cx,[bp+4]	; len
+	int	$21
+	jnc	endwrite
+	mov	ax,-1
+endwrite:
+	pop	bp
+	ret
+
+
+; T.SEEK(FD, WHERE, HOW)
+; Seek to position WHERE in file FD.
+; HOW=0, absolute from beginning
+; HOW=1, relative from beginning
+; HOW=2, absolute from end
+; HOW=3, relative from end
+; Return 0=success or -1=failure.
+
+t_seek:
+	push	bp
+	mov	bp,sp
+	mov	dx,[bp+6]	; where
+	xor	cx,cx
+	mov	ax,[bp+4]	; how
+	or	ax,ax		; T3X.SEEK_SET
+	jnz	seek1
+	mov	ax,$4200	; DOS: move file pointer, absolute
+	jmps	goseek
+seek1:	cmp	ax,1		; T3X.SEEK_FWD
+	jnz	seek2
+	mov	ax,$4201	; DOS: move file pointer, relative
+	jmps	goseek
+seek2:	or	dx,dx
+	jz	seek3
+	neg	dx		; negative offset
+	dec	cx
+seek3:	cmp	ax,2		; T3X.SEEK_END
+	jnz	seek4
+	mov	ax,$4202	; DOS: move file pointer, from EOF
+	jmps	goseek
+seek4:	cmp	ax,3		; T3X.SEEK_BCK
+	jnz	skfail
+	mov	ax,$4201	; DOS: move file pointer, relative
+goseek: mov	bx,[bp+8]	; fd
+	int	$21
+	jc	skfail
+	xor	ax,ax
+	jmps	skok
+skfail:	mov	ax,-1
+skok:	pop	bp
+	ret
+
+
+; T.RENAME(OLD, NEW)
+; Rename file OLD as NEW.
+; Fail if OLD does not exist or NEW does exist.
+; Return 0=success or -1=failure.
+
+t_rename:
+	push	bp
+	mov	bp,sp
+	mov	ax,$5600	; DOS: rename
+	mov	dx,[bp+6]	;; old
+	mov	di,[bp+4]	;; new
+	int	$21
+	jnc	renok
+	mov	ax,-1
+	jmps	endrename
+renok:
+	xor	ax,ax
+endrename:
+	pop	bp
+	ret
+
+
+; T.REMOVE(NAME)
+; Delete file.
+; Return 0=success or -1=failure.
+
+t_remove:
+	push	bp
+	mov	bp,sp
+	mov	ax,$4100	; DOS: delete
+	mov	dx,[bp+4]	;; file
+	int	$21
+	jnc	rmok
+	mov	ax,-1
+	jmps	endremove
+rmok:
+	xor	ax,ax
+endremove:
+	pop	bp
+	ret
+
+; T.TRUNC(FD)
+; Truncate file.
+; Return 0=success or -1=failure
+
+t_trunc:
+	push	bp
+	mov	bp,sp
+	mov	ax,$4000	; DOS: write
+	mov	bx,[bp+4]	;; file descriptor
+	xor	dx,dx		;; buffer
+	xor	cx,cx		;; length=0, truncate
+	int	$21
+	jnc	tcok
+	mov	ax,-1
+	jmps	endtrunc
+tcok:
+	xor	ax,ax
+endtrunc:
+	pop	bp
+	ret
+
+; T.BREAK(ADDR)
+; Handle keyboard interrupt/break
+; Return: 0
+
+oldcbs:	dw	0
+oldcbo:	dw	0
+cbsem:	dw	0
+
+cbhandler:
+	push	bx
+	mov	bx,cbsem
+	mov	[bx],-1
+	pop	bx
+	iret
+
+t_break:
+	push	bp
+	mov	bp,sp
+	mov	bx,[bp+4]
+	or	bx,bx
+	jz	restcb
+	cmp	bx,1
+	jz	testcb
+	mov	cbsem,bx
+	mov	[bx],0
+	mov	ax,$2523	; set ctl-break handler
+	mov	dx,offset cbhandler
+	int	$21
+	jmps	excb
+restcb:	push	ds
+	mov	dx,oldcbo
+	mov	ax,oldcbs
+	mov	ds,ax
+	mov	ax,$2523	; set ctl-break handler
+	int	$21
+	pop	ds
+	jmps	excb
+testcb:	mov	ax,$0B00	; check keyboard status
+	int	$21
+excb:	xor	ax,ax
+	pop	bp
+	ret
+
+; T.INTR86(INT, REGS)
+; Perform x86 interrupt service request
+; Return: flags
+
+t_intr86:
+	push	bp
+	mov	bp,sp
+	mov	ax,[bp+6]	; int
+	mov	intno,al
+	mov	bx,[bp+4]	; regs
+	mov	ax,[bx]
+	mov	cx,[bx+4]
+	mov	dx,[bx+6]
+	mov	si,[bx+8]
+	mov	di,[bx+10]
+	mov	bx,[bx+2]
+	db	205		; INT x
+intno:	db	0
+	pushf
+	push	bx
+	mov	bx,[bp+4]
+	mov	[bx],ax
+	mov	[bx+4],cx
+	mov	[bx+6],dx
+	mov	[bx+8],si
+	mov	[bx+10],di
+	pop	ax
+	mov	[bx+2],ax
+	pop	ax
+	pop	bp
+	ret
+
+;
+; comparison operations
+;
+
+cmp_eq:
+	pop	si
+	pop	bx
+	xor	dx,dx
+	cmp	bx,ax
+	jnz	eq1
+	dec	dx
+eq1:	mov	ax,dx
+	jmp	si
+
+cmp_ne:
+	pop	si
+	pop	bx
+	xor	dx,dx
+	cmp	bx,ax
+	jz	ne1
+	dec	dx
+ne1:	mov	ax,dx
+	jmp	si
+
+cmp_lt:
+	pop	si
+	pop	bx
+	xor	dx,dx
+	cmp	bx,ax
+	jge	lt1
+	dec	dx
+lt1:	mov	ax,dx
+	jmp	si
+
+cmp_gt:
+	pop	si
+	pop	bx
+	xor	dx,dx
+	cmp	bx,ax
+	jle	gt1
+	dec	dx
+gt1:	mov	ax,dx
+	jmp	si
+
+cmp_le:
+	pop	si
+	pop	bx
+	xor	dx,dx
+	cmp	bx,ax
+	jg	le1
+	dec	dx
+le1:	mov	ax,dx
+	jmp	si
+
+
+cmp_ge:
+	pop	si
+	pop	bx
+	xor	dx,dx
+	cmp	bx,ax
+	jl	ge1
+	dec	dx
+ge1:	mov	ax,dx
+	jmp	si
+
+cmp_ult:
+	pop	si
+	pop	bx
+	xor	dx,dx
+	cmp	bx,ax
+	jae	ult1
+	dec	dx
+ult1:	mov	ax,dx
+	jmp	si
+
+cmp_ugt:
+	pop	si
+	pop	bx
+	xor	dx,dx
+	cmp	bx,ax
+	jbe	ugt1
+	dec	dx
+ugt1:	mov	ax,dx
+	jmp	si
+
+cmp_ule:
+	pop	si
+	pop	bx
+	xor	dx,dx
+	cmp	bx,ax
+	ja	ule1
+	dec	dx
+ule1:	mov	ax,dx
+	jmp	si
+
+
+cmp_uge:
+	pop	si
+	pop	bx
+	xor	dx,dx
+	cmp	bx,ax
+	jb	uge1
+	dec	dx
+uge1:	mov	ax,dx
+	jmp	si
+
+start:
+	mov	ax,$FFFE
+	mov	sp,ax
+	push	es
+	mov	ax,$3523	; get ctl-break handler
+	int	$21
+	mov	ax,es
+	mov	oldcbs,ax
+	pop	es
+	mov	oldcbo,bx
+
+	; T3X code starts here ...
+end:

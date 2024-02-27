@@ -1,0 +1,275 @@
+
+
+	T3X/0 - A NEW T3X COMPILER
+
+	T3X is a family of small, portable, procedural, block-structured,
+	recursive, and almost typeless programming languages. The T3X
+	syntax is similar to Pascal, its semantics resembles BCPL's.
+
+	T3X/0 is the latest member of the T3X family. Its design is
+	based on the experience made with its predecessors. It is
+	simpler than the full (Release 7) language, but more complete
+	than the minimalistic T3X9 branch.
+
+	The compiler presented here is a single-stage two-pass compiler
+	that is aimed to be ported quickly to new platforms, typically
+	by just writing a new machine description file. The compiler
+	can run on systems as minimal as CP/M on a Z80 CPU and easily
+	fits in a tiny model DOS executable. It self-compiles in ten
+	minutes on a 4MHz CP/M system -- and in the blink of an eye on
+	a modern Unix system.
+
+
+	CURRENTLY SUPPORTED PLATFORMS
+
+	Operating System   CPU    Output format       Requires
+	Generic Unix       VM     Tcode/0             TCVM
+	Generic Unix       386    assembly language   C compiler
+	FreeBSD            386    assembly language   assembler, loader
+	PCDOS 2.0          VM     Tcode/0             TCVM
+	PCDOS 2.0          8086   COM                 -
+	CP/M 2.2           Z80    COM                 46K bytes TPA
+
+	The compiler can operate natively or as a cross-compiler. Almost
+	all combinations are supported: for example, you can cross-
+	compile on CP/M for the TCVM, on the TVCM for Unix, on Unix for
+	DOS, and on DOS for CP/M. Or on CP/M for DOS, etc. The only
+	combinations that are not possible are cross-compilation to
+	Unix on CP/M or DOS, because the source code emitter is too
+	large.
+
+	----------------------------------------------------------------
+	                             NOTE
+	----------------------------------------------------------------
+	When compilation is aborted and re-compilation fails, this is
+	usually due to the wrong code generator being linked in place.
+	In this case the following line should bring the code back to
+	a useful state:
+
+	    make clean; make reset; make
+
+
+	QUICK BUILD
+
+	To build and test the T3X/0 compiler, just run
+
+	    make triple test
+
+	This will build the compiler and run the triple test and the
+	test suite. This step should print "Looks good!" at the end.
+
+	If it fails (and you are on a 64-bit system), try rebuilding
+	the TCVM in 32-bit mode (add -m32 to the flags of compiling
+	tcvm.c in Makefile).
+
+
+	QUICK USAGE
+
+	After building the compiler successfully, you can compile
+	programs by typing
+
+	    ./tcvm txtrn program
+
+	This will compile "program.t" to "program.tc". You can then
+	run the program by typing
+
+	    ./tvcm program
+
+	You can also specify an output file name, e.g.:
+
+	    ./tcvm programs/apfel test
+
+	which will compile "programs/apfel.t" and place the binary in
+	the file "test.tc" in the local directory.
+
+
+	INSTALLATION (UNIX)
+
+	First edit the T3XDIR and BINDIR variables in Makefile. T3XDIR
+	is where the T3X binary tree will be installed and BINDIR is
+	where the "tx0" compiler driver will go.
+
+	Also edit T3XDIR in bin/tx0.sh.
+
+	If you are running a system that supports native code generation
+	(basically 386-based Unix and x86-64-based Unix in 32-bit mode),
+	run
+
+	    make install-native
+
+	If you are running a different system (or if the above fails),
+	you may still install Tcode binaries of the compiler, They will
+	offer the same functionality as the native compiler, but run at
+	reduced speed. To install the Tcode binaries, run
+
+	    make install-tcode
+
+	If that should also fail, try recompiling the TCVM in 32-bit
+	mode, i.e. add the -m32 flag to the compilation of tcvm.c in
+	Makefile and then run "make clean; make". If that passes, try
+	install-native or install-tcode respectively.
+
+
+	INSTALLATION (CP/M AND DOS)
+
+	If you are running DOS or CP/M, you can just install the
+	pre-compiled binaries from the "bin" directory.
+
+	To install the compiler on CP/M, copy the file "bin/tx-cpm.com"
+	to TX0.COM on your CP/M disk. Then convert the file
+	"targets/txcpmz80.t" to CP/M text file format and install it as
+	T3X.T on your CP/M disk. The program "programs/cpmfile.t" can be
+	used to convert the file on Unix:
+
+	    tcvm txtrn programs/cpmfile cpmfile
+	    tcvm cpmfile targets/txcpmz80.t t3x-cpm.t
+
+	To install the compiler on DOS, copy the file "bin/tx-dos.com"
+	to TX0.COM on your DOS disk and install "targets/txdos86c.t" as
+	T3X.T. Conversion to DOS text file format is optional (it can
+	be done with the program "programs/dosfile.t").
+
+
+	COMPILER USAGE
+
+	This requires either the Tcode or native code binaries to be
+	installed on your system. See INSTALLATION, above.
+
+	The T3X/0 compiler driver is called TX0. When just a program
+	file name is passed to it, it will compile it to an executable
+	program, e.g.
+
+	    tx0 hello
+
+	will compile the file "hello.t" and produce an executable file.
+	When an output file name is also given, the resulting executable
+	will be placed in that file. E.g.
+
+	   tx0 foo bar
+
+	will compile "foo.t" to an executable named "bar". The executable
+	may or may not have a suffix, depending on the type of the
+	generated file. Note that the compiler will generate suffixes
+	itself, so running
+
+	    tx0 hello.t # WRONG
+
+	will not work. The name of the executable file depends on the
+	selected target. Tcode files will have a ".tc" suffix, Unix
+	executables will not have any suffix at all, and DOS and CP/M
+	executables will have a ".com" suffix.
+
+	The default target will be Tcode when only Tcode binaries are
+	installed on your system and Unix executables when native code
+	binaries are installed.
+
+	A different target can be specified using the -t option. For
+	example,
+
+	   tx0 -t cpm hello
+
+	will generate a CP/M executable named "hello.com".
+
+	The targets "tcvm", "dos", and "cpm" are available in both
+	native and Tcode installations. Unix installations add the
+	"unix" target. The default is "tcvm" in Tcode installations
+	and "unix" in Unix installations.
+
+	In native code installations, specifying the -b flag will use
+	the Tcode compiler instead of the native compiler.
+
+	When "/v" is specified as an output file name, the compiler will
+	print the name of each procedure it compiles. The name of the
+	output file will be the default, i.e. the name of the input file
+	with its suffix removed and an executable suffix attached, if
+	any.
+
+
+	BUILDING CROSS COMPILERS
+
+	The "bin/build.sh" script can be used to build all T3X/0 cross
+	compiler automatically. Just run
+
+	    bin/build.sh host target
+
+	to generate a compiler that will run on the given host and
+	generate code for the given target. There is a total of 14
+	different compilers that can be built from the code:
+
+	Target --> TCVM        CP/M        DOS        Unix(*)
+	Host
+	----
+	TCVM       txtrn.tc    tx-cpm.tc   tx-dos.tc  tx-unix.tc
+	           txtcvm.t    txcpmz80.t  txdos86c.t txunx386.t
+
+	CP/M       tx-tcvm.com tx-cpm.com  tx-dos.com (**)
+	           txtcvm.t    txcpmz80.t  txdos86c.t
+
+	DOS        tx-tcvm.com tx-cpm.com  tx-dos.com (**)
+	           txtcvm.t    txcpmz80.t  txdos86c.t
+
+	Unix(*)    tx-tcvm     tx-cpm      tx-dos     tx-unix
+	           txtcvm.t    txcpmz80.t  txdos86c.t txunx386.t
+
+	 (*) There is an alternative backend for FreeBSD. See below.
+	(**) These compilers cannot be built, because they would be
+	     too large.
+
+	For example,
+
+	    bin/build.sh cpm dos
+
+	will generate an executable named "tx-dos.com" that will run
+	on CP/M and generate code for DOS. In order to work, the
+	compiler will need a matching core module named "t3x.t", in
+	this case the file "targets/txdos86c.t" renamed as "t3x.t".
+
+	Note that there will be lots of naming conflicts. The DOS and
+	CP/M compiler all share names, and the core module of every
+	compiler must be named "t3x.t". When installed, the Unix
+	compiler driver "tx0" will take care of these details. On other
+	systems it is up to you to create a workable solution.
+
+
+	THE FREEBSD BACKEND
+
+	There is a backend for FreeBSD which has some advantages and
+	some disadvantages compared to the generic Unix backend.
+
+	The greatest advantage is that is compiles to very compact
+	*static* executables and does not depend on the C runtime
+	library. The static T3X/0 compiler executable has a size of
+	less than 40K bytes. It is smaller than the dynamic executable
+	generated by the generic Unix backend.
+
+	The greatest disadvantage is that there is no C runtime library
+	to gloss over the internal differences between the various
+	FreeBSD systems, so there is no guarantee that it will run on
+	any system except for FreeBSD 12.4 (on which it has been tested).
+
+	Then compile times are lightning fast, because no multi-megabyte
+	C compiler behemoth has to shoveled into memory. This might not
+	be a big issue these days, but self-compiling T3X/0 in 0.17
+	seconds on a 1000MHz system is pretty cool (0.31s using the
+	generic Unix backend).
+
+	However, the FreeBSD backend does not have the T3X.BREAK
+	function for intercepting keyboard interrupts, because the
+	emulation of signal() has become so bizarrely complicated
+	in the recent years that I have just given up on it.
+
+	To use the FreeBSD backend, change the value of HOST in Makefile
+	to "fbsd" and then run
+
+	    make clean; make; make fbsd-triple
+
+	If it works, great! If it fails, use the generic Unix backend.
+
+	You can use HOST=unix and the "install-fbsd-native" make target
+	to install both the generic Unix backend and the FreeBSD backend.
+	The Unix backend will be the default, but you can use
+
+	    tx0 -t fbsd program
+
+	to activate the FreeBSD code generator.
+

@@ -1,0 +1,225 @@
+
+	2024-02-18
+
+	- Changed A=-A to A=~A+1 in TCVM, because -unsigned *probably*
+	  is undefined bahavior in C.
+
+	2024-01-24
+
+	- Added CON.RSCROLL procedure to CONSOLE module.
+
+	2024-01-23
+
+	- Fixed module path in DOS86C code generator (cross compilers
+	  could not find library modules).
+	- Added CONSOLE module. Allows cursor addressing, raw keyboard
+	  input, etc on Unix, DOS, and CP/M. See docs/t3x-libs.txt.
+	- Added -c (link curses library) option to tx0 compiler driver.
+	  Required on Unix systems when using the CONSOLE module.
+
+	2023-12-23
+
+	- Added DROP,PUSH->NULL rule to optimizer.
+
+
+	----- "WRITE YOUR OWN RETRO COMPILER" PUBLISHED -----
+
+	2023-12-02
+
+	- Applied misc. small fixes to the manual (docs/t3x.txt).
+
+	2023-11-28
+
+	- Fix: T.CLOSE no longer flushes write-only files when the
+	  descriptor passed to it is already closed.
+
+	2023-11-20
+
+	- Fixed @F and [@F] where F is a forward-declared function
+	  (generated wrong address).
+
+	2023-11-18
+
+	- Removed MU interpreter example and docs (too big, should
+	  be separate).
+
+	2023-11-07
+
+	- Changed stack frame allocation so that every function has
+	  a stack frame, even if it has no arguments and no local
+	  variables.
+
+	  Rationale:
+
+	  f() IF (0) DO VAR x; END
+
+	  would crash, because a stack frame is created conditionally
+	  (i.e. never in the example) and removed unconditionally.
+
+	2023-11-02
+
+	- Simplified forward declarations, they are now just ordinary
+	  labels that will be resolved later. All the special forward
+	  declaration handling is not necessary in a 2-pass compiler.
+	- No longer allowing DECL in modules.
+
+	2023-10-27
+
+	- Updated reference manual (docs/t3x.txt).
+
+	2023-10-12
+
+	- Fix: CPM.SEARCHNEXT function does not need an FCB.
+
+	2023-10-12
+
+	- Added CPMDIR example program (list CP/M directory).
+
+	2023-10-11
+
+	- Changed EXPANDFN in the CPM library to use the function in
+	  the core library instead of duplicating it in the CPM library.
+	  This requires some support in the core lib. See T_EXPANDFN.
+	- Added Unix example program using curses routines (curses.t).
+	- Changed MU example program to use T.BREAK function instead
+	  of external signal().
+
+	2023-10-10
+
+	- Allowed addresses of global variables in addition
+	  to functions in static tables, because T3Xr7 does it this way.
+	  (Not allowing @vector, though, due to different semantics.)
+
+	2023-10-08
+
+	- Imported slightly improved S86 from T3XFORTH.
+	  Still full of bugs, though.
+
+	2023-10-08
+
+	- added documentation of library functions (docs/t3x-libs.txt).
+
+	2023-09-24
+
+	- Inlined most comparison operations.
+	- Simplified DIV15S and CMP15S in CP/M runtime library.
+	- Extended test suite to cover normalized comparison
+	  (x := a RELOP b).
+
+	2023-09-22
+
+	- Added CP/M BDOS call module to library (CPM.T).
+	- Added CP/NC BDOS call module to library (CPNC.T).
+
+	2023-09-21
+
+	- Removed LIBC dependency from FreeBSD backend.
+	- Rewrote README files.
+
+	2023-09-19
+
+	- Fixed TCVM targets in bin/build.sh.
+	- Added -b (bytecode) option to bin/tx0.sh (use TCVM compiler).
+	- Added minimum (bytecode) install target to Makefile
+	  (install-tcode).
+
+	2023-09-18
+
+	- T.OPEN no longer creates invalid file names with T3X.OWRITE
+	  on CP/M (epxandfn returns CY=1 when file name is invalid).
+	- Ported TCVM to DOS using Turbo C.
+
+	2023-08-25
+
+	- Removed creation of forward labels for LEAVE and LOOP (not
+	  necessary in a two-pass compiler).
+
+	2023-08-01
+
+	- Added more optimization templates.
+	- Fixed /V flag (would create wrong output file name).
+
+	2023-07-31
+
+	- Still had not gotten LEAVE/LOOP right in blocks allocating
+	  storage. :(  Should work under all conditions now.
+	- Removed spurious Retlab (L0) in main procedures.
+
+	2023-02-13
+
+	- Added the T.INTR86 procedure and T3X.REG86 structure to the
+	  DOS runtime module.
+	- Implemented T.TRUNC in FreeBSD runtime module.
+
+	2023-02-12
+
+	- Implemented T.TRUNC and T.BREAK in DOS runtime module.
+
+	2023-01-17
+
+	- Implemented T.TRUNC (truncate files) and T.BREAK (intercept
+	  keyboard break) in Unix runtime module.
+
+	2022-12-31
+
+	- Made -C (where C is a constant) a valid constant expression.
+
+	2022-12-10
+
+	- Added "-e external_module" option to TX0.
+	  Try "tx0 -e curses.c -e -lcurses curses" in  programs/.
+
+	2022-12-06
+
+	- Renamed UNX386 backend FBD386 (FreeBSD-386).
+	- bin/build and bin/tx0 now use target 'fbsd' instead of 'unix'.
+	- Added more generic Unix-386 backend (UNX386).
+
+	2022-10-22
+
+	- Fix: f(p) miscompiled, if P is a procedure.
+	- Added shellsrt module
+
+	2022-10-18
+
+	- Unix-386 T.NEWLINE returned wrong sequence.
+	- Fixed some errors in the manual (t3x.txt).
+
+
+	----- Differences between T3Xr7 and T3X/0 -----
+
+	Added string literals as abbreviations to packed vectors.
+
+	Changed module syntax:
+	MODULE name; declarations [compound] END
+	If a compound statement is present, it will execute when
+	the module is USEd for the first time, or at the beginning
+	of program execution, if the module declaration is not in
+	a separate file.
+
+	PUBLIC declarations in modules can be imported.
+
+	Changed module import syntax:
+	USE name;
+	USE name: alias;
+	USE name: name;
+	Will load module from sources, but only when not already
+	present. Using alias=name overrides internal module names.
+
+	Removed classes and objects.
+
+	Constant expressions limited to -x, *, +, |.
+
+	Added EXTERN procedures for ports with source output:
+	EXTERN name(arity), ... ;
+
+	Added INLINE procedures for ports with binary output:
+	INLINE name(arity) = [ byte, ... ], ... ;
+
+	Jumps out of blocks allocating local storage (LEAVE, LOOP)
+	are safe. Storage will be deallocated before exiting.
+
+	Full T3X core library supported, including the functions BPW,
+	NEWLINE, GETARG, CREATE, SEEK, REMOVE, RENAME, as well as
+	OAPPND mode. (SEEK and OAPPND are not supported on CP/M.)
+

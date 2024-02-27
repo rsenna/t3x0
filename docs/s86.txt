@@ -1,0 +1,199 @@
+
+	S86 -- An Assembler for an 8086 Subset
+	Nils M Holm, 1998-2021
+	Public domain / 0BSD license
+
+
+	USAGE
+
+	S86 [input-file [output-file]]
+
+
+	SUMMARY
+
+	S86 reads an 8086 assembly language program in S86 format and
+	writes a pure text image file. Any errors found in the input
+	program will be reported on SYSERR.
+
+	When both an input file and an output file are specified, it
+	reads the given input file and writes to the given output file.
+	When only an input file is given, it will append a '.S86' suffix
+	to the input file and a '.COM' suffix to the output file. When
+	neither is given, it will read from SYSIN and write to SYSOUT.
+
+
+	PROGRAM FORMAT
+
+	S86 accepts input programs in its own format which is similar
+	to the MASM source format, although some mnemonics and
+	conventions are different. Generally, statements are written in
+	the form
+
+	INSTRUCTION   DESTINATION,SOURCE      ; OPTIONAL COMMENT
+
+	A semicolon may be used to introduce a comment which extends up
+	to the end of the current line. All labels must be delimited
+	with a colon -- even in data definitions:
+
+	xyz: dw 0
+
+	The following mnemonics will be accepted by S86:
+
+	aaa aad aam aas adc add and call cbw clc cld cli cmc cmp
+	cmpsb cmpsw cseg cwd daa das dec div dseg eseg hlt idiv
+	imul inb inc int into inw iret ja jae jb jbe jc jcxz je jg
+	jge jl jle jmp jmps jnc jne jno jnp jns jnz jo jp js jz
+	lahf lock lodsb lodsw loop loopnz loopz mov movsb movsw mul
+	neg nop not or outb outw pop popf push pushf rcl rcr rep
+	repnz repz ret rol ror sahf sal sar sbb scasb scasw shl shr
+	sseg stc std sti stosb stosw sub test wait xchg xlat xor
+
+	All mnemonics must be written in lower case.
+
+	S86 does not use instruction prefixes. Therefore, instructions
+	like cseg, repz, etc must always be placed in a separate line.
+
+	Operands may be prefixed with the modifiers 'byte', 'word', or
+	'offset'. 'offset' computes the address of an object. E.g.,
+
+	mov   ax,offset obj
+
+	loads the address of 'obj' into the 'ax' register rather then
+	the value stored at location 'obj'. 'byte' and 'word' are used
+	to specify the size of an operand explicitly. If not specified,
+	S86 attempts to find out the size by checking the registers
+	involved. If no registers are used, it defaults to word size.
+
+	Some instructions like 'outw', 'stosb', etc have an implicit
+	operand size which is indicated by the last character in their
+	name. No modifiers may be applied to such instructions. There
+	is no MASM-style 'short' modifier in the S86 syntax. Instead,
+	the 'jmps' instruction is used to code unconditional short
+	jumps.
+
+	Numeric literals may be written in decimal notation with an
+	optional leading minus sign or in hexa-decimal notation
+	with a leading dollar sign ($). The hex digits 10 through 15
+	are represented by 'A'...'F'. Lower case characters will not
+	be accepted in hex numbers. ASCII characters may be used in
+	the place of numeric values when enclosing them in apostrophes.
+	For example, 'A' is the same as 65 or $41.
+
+	Registers are written in all lower case characters. They may
+	not be used as symbolic names. The following names are reserved
+	for registers.
+
+	16-bit registers:   ax, bx, cx, dx, si, di, bp, sp
+	8-bit registers:    al, bl, cl, dl, ah, bh, ch, dh
+	segment registers:  cs, ds, es, ss
+
+	The following indirect addressing modes are recognized:
+
+	[si], [di], [bx], [bx+si], [bx+di], [bp+si], [bp+di],
+	[bp], [bp+disp], [bx+disp], [si+disp], [di+disp]
+
+	'disp' denotes either an 8-bit or a 16-bit displacement.
+	Displacements may be negative, too.
+
+	Offsets can also be used in combination with indirect addressing
+	by prefixing a symbol with the '@' operator. For instance,
+
+	[si+@foo]
+
+	would address the si'th byte (or word) after the address of
+	the symbol 'foo'. In this case '@foo' is a 16-bit displacement.
+
+
+	COMMANDS
+
+	S86 understands the following commands (pseudo instructions):
+
+	.text [origin]
+
+	Specify the origin of the emitted code, i.e. the address of
+	the first instruction being emitted. If no origin is specified,
+	it defaults to 0. The origin is the address at which the output
+	program will be loaded at run time. For DOS COM files, the
+	origin must be $100.
+
+	[name:]   db   item , ...
+	[name:]   dw   item , ...
+
+	Emit the specified list of data items. An item may have one out
+	of the following formats:
+
+	Number -- Numeric literals are included as the values they
+	represent. In 'db' commands, their range is limited to the
+	range -128...255.
+
+	String -- A string is written as a sequence of characters
+	enclosed by double quotes ("). Each character is compiled
+	literally. In dw instructions, each character is placed in the
+	low byte of a separate word.
+
+	Offset -- The notation 'offset symbol' compiles the address of
+	the specified symbol.
+
+	name: equ value
+
+	Assign 'value' to the address field of the label 'name'. Equ
+	allows to access the absolute memory location with the address
+	'value' using the label 'name'. When defining
+
+	there:   equ   1024
+
+	for example, the statement
+
+	mov   al,there
+
+	would load al with the content of memory location ds:1024.
+
+
+	OUTPUT FILE FORMAT
+
+	The output format of S86 is pure text with no header and no
+	data segment. Therefore, a '.data' or '.bss' command is not
+	recognized. All program data must be placed in the text segment.
+
+	When placing data in the text segment, segments must be set up
+	such that cs = ds. Otherwise access to data must be prefixed
+	with a 'cseg' instruction:
+
+	.text
+	        cseg
+	        mov     ax,data
+	...
+	data:   dw      0
+
+	When DOS loads a COM file, all segments will be aligned with
+	the text segment, i.e. cs = ds = es = ss, so no xseg prefixes
+	are needed.
+
+	The default entry point of S86 programs is cs:0, for COM files,
+	it must be changed to cs:$100.
+
+
+	SKELETON PROGRAM
+
+	This program skeleton illustrates how to write COM-style DOS
+	programs using S86:
+
+	        .text   $100    ; the same as ORG 100H
+	        jmp     code
+	data:   dw      0
+	code:
+	;
+	; Insert your code here
+	;
+	; Segments will be set up as follows: ds = es = ss = cs
+	;
+	; 'data' will be located at ds:$103
+	; ($100 + size of jmp instruction)
+
+
+	BUGS AND LIMITATIONS
+
+	Not all 8086 addressing modes are recognized.
+
+	The output program size is limited to 16KB.
+
