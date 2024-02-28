@@ -4,19 +4,28 @@
 
 V=15
 
+# Detect OS
 ifeq ($(OS),Windows_NT)          # is Windows_NT on XP, 2000, 7, Vista, 10...
     detected_OS := Windows
 else
     detected_OS := $(shell uname)
 endif
 
-$(info OS is ${detected_OS})
+$(info Detected OS: ${detected_OS})
+
+# If OS == Linux, check if cc has 32 bit support
+ifeq ($(detected_OS),Linux)
+    cc_configuration := $(shell cc -v 2>&1)
+    ifeq (,$(findstring m32,$(cc_configuration)))
+        $(warning No x86 support, please install gcc-multilib)
+    endif
+endif
 
 # Flags for compiling T3X/0 assembly output
 #
   CFLAGS=-std=c89
 ifneq ($(detected_OS),Darwin)
-  CFLAGS+=-m32                 # on 64-bit systems
+  CFLAGS+=-m32                 # on (non macOS) 64-bit systems
 endif
 # CFLAGS+=-fPIC                # get rid of stupid linker errors
 # CFLAGS+=-Wl,-z,notext        # get rid of stupid linker errors
@@ -61,7 +70,7 @@ txtrn0:	txtrn0.t
 # The Tcode/0 VM
 #
 tcvm:	tcvm.c
-	cc -O2 -g -o tcvm tcvm.c
+	cc $(CFLAGS) -O2 -g -o tcvm tcvm.c
 
 # Triple test of the Tcode/0 compiler
 #
