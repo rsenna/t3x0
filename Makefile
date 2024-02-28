@@ -10,10 +10,10 @@ V=15
 ifeq ($(OS),Windows_NT) # works for Windows XP, 2000, 7, Vista, 10, 11...
   detected_OS := Windows
 else
-  detected_OS := $(shell uname)
+  detected_OS := $(shell uname 2> /dev/null)
 endif
 
-$(info Detected OS: ${detected_OS})
+$(info Detected OS: $(or $(detected_OS),(unknown)))
 
 # If OS == Linux, check if cc has 32 bit support
 #
