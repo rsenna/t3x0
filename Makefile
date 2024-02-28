@@ -1,31 +1,34 @@
 # T3X/0 Makefile
 # Nils M Holm, 2022, 2023, 2024
 # Public domain / 0BSD license
+# Fixes for Linux, Darwin by Rogerio Senna
 
 V=15
 
 # Detect OS
-ifeq ($(OS),Windows_NT)          # is Windows_NT on XP, 2000, 7, Vista, 10...
-    detected_OS := Windows
+#
+ifeq ($(OS),Windows_NT) # works for Windows XP, 2000, 7, Vista, 10, 11...
+  detected_OS := Windows
 else
-    detected_OS := $(shell uname)
+  detected_OS := $(shell uname)
 endif
 
 $(info Detected OS: ${detected_OS})
 
 # If OS == Linux, check if cc has 32 bit support
+#
 ifeq ($(detected_OS),Linux)
-    cc_configuration := $(shell cc -v 2>&1)
-    ifeq (,$(findstring m32,$(cc_configuration)))
-        $(warning No x86 support, please install gcc-multilib)
-    endif
+  cc_configuration := $(shell cc -v 2>&1)
+  ifeq (,$(findstring m32,$(cc_configuration)))
+    $(warning No x86 support, please install gcc-multilib)
+  endif
 endif
 
 # Flags for compiling T3X/0 assembly output
 #
-  CFLAGS=-std=c89
+CFLAGS=-std=c89                # force C89 rules
 ifneq ($(detected_OS),Darwin)
-  CFLAGS+=-m32                 # on (non macOS) 64-bit systems
+  CFLAGS+=-m32                 # force 32-bit compilation (but not on macOS)
 endif
 # CFLAGS+=-fPIC                # get rid of stupid linker errors
 # CFLAGS+=-Wl,-z,notext        # get rid of stupid linker errors
