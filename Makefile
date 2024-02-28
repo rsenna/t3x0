@@ -8,7 +8,7 @@ V=15
 # Detect OS
 #
 ifeq ($(OS),Windows_NT) # works for Windows XP, 2000, 7, Vista, 10, 11...
-  detected_OS := Windows
+  detected_OS := Windows_NT
 else
   detected_OS := $(shell uname 2> /dev/null)
 endif
