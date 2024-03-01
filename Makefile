@@ -15,11 +15,11 @@ endif
 
 $(info Detected OS: $(or $(detected_OS),(unknown)))
 
-# If OS == Linux, check if cc has 32 bit support
+# If OS == Linux, check if cc has 32-bit support
+# TODO: assuming installed Linux is always 64-bit, might not work on plain 32-bit Linux
 #
 ifeq ($(detected_OS),Linux)
-  cc_configuration := $(shell cc -v 2>&1)
-  ifeq (,$(findstring m32,$(cc_configuration)))
+  ifeq (,$(wildcard /usr/lib32/libc.a))
     $(warning No x86 support, please install gcc-multilib)
   endif
 endif
