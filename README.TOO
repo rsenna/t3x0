@@ -27,12 +27,12 @@
 	    of course, because it uses a pre-existing T3X/0 binary.
 	    Anyway, this is how it works:
 
-	        cc -o tcvm tcvm.c      # try -m32 if the next step fails
+	        cc -o tcvm tcvm.c
 	        ./tcvm bin/txtrn0 txtrn
 
 	(2) or, by compiling the boostrapping compiler "txtrn0.t" with
 	    T3Xr7 and then compiling the final compiler with that. This
-	    variant requires that a T3Xr7 compile is installed on your
+	    variant requires that a T3Xr7 compiler is installed on your
 	    computer, which also has to be bootstrapped. With T3Xr7
 	    installed, this is how it works:
 
@@ -51,8 +51,8 @@
 	The TCVM is a very basic C program with a length of about 300
 	lines (plus some extras). It will not run on 16-bit machines,
 	though, because it needs more than 64K bytes of data. You can
-	get away with large model on DOS. There is a pre-compiled TCVM
-	for DOS in the "bin" directory.
+	get away with large model on DOS, though. There is a pre-
+	compiled TCVM for DOS in the "bin" directory.
 
 	There are also pre-compiled binaries for DOS and CP/M in the
 	"bin" directory, in case you should want to bootstrap on such
@@ -143,7 +143,7 @@
 	    Edit the file "cg.t" and change the value of the "modpath"
 	    function to reflect your installation. Any trailing path
 	    separators must be given (e.g. "lib/" instead of "lib").
-	    Note that a prefix of "" means to leave the input file as
+	    Note that a path of "" means to leave the input file as
 	    is. On CP/M only drive letters (A:, etc) may be specified.
 
 	(4) Compile the compiler. This step will create a binary that
@@ -189,7 +189,8 @@
 	be passed to the C compiler controller, cc.
 
 	E.g., when building the Unix compiler using the above process 
-	(but using the unx386 target instead of cpmz80), the command
+	(but using the unx386 target instead of cpmz80 and txemtsrc
+	instead of txemtbin), the command
 
 	    ./tcvm tx-tcvm-unix txtrn tx-unix
 
@@ -199,7 +200,7 @@
 	    cc -m32 -o tx-unix tx-unix.s targets/ux386lib.c
 
 	The -m32 option can/must be omitted on 32-bit machines. On some
-	systems you may also have to specify the compiler option -fPIC
+	systems you also may have to specify the compiler option -fPIC
 	or the linker option -Wl,-z,notext. I have no idea why, nor do I
 	care.
 

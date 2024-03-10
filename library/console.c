@@ -70,7 +70,7 @@ void t3x_writes(char *s) {
 	addstr(s);
 }
 
-int	Mdelay = 1000;
+static int	Mdelay = 1000;
 
 void t3x_calibrate(int m) {
 	Mdelay = m;

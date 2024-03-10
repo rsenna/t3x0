@@ -58,10 +58,6 @@
 	This will build the compiler and run the triple test and the
 	test suite. This step should print "Looks good!" at the end.
 
-	If it fails (and you are on a 64-bit system), try rebuilding
-	the TCVM in 32-bit mode (add -m32 to the flags of compiling
-	tcvm.c in Makefile).
-
 
 	QUICK USAGE
 
@@ -104,11 +100,6 @@
 
 	    make install-tcode
 
-	If that should also fail, try recompiling the TCVM in 32-bit
-	mode, i.e. add the -m32 flag to the compilation of tcvm.c in
-	Makefile and then run "make clean; make". If that passes, try
-	install-native or install-tcode respectively.
-
 
 	INSTALLATION (CP/M AND DOS)
 
@@ -128,6 +119,19 @@
 	to TX0.COM on your DOS disk and install "targets/txdos86c.t" as
 	T3X.T. Conversion to DOS text file format is optional (it can
 	be done with the program "programs/dosfile.t").
+
+	You may also copy the library files in the library/ directory to
+	your DOS or CP/M system. Note that there are multiple versions
+	of the CONSOLE module, one for every supported system. Only one
+	of the files must be installed as CONSOLE.T.
+
+	The location of the library files depends on the "modpath"
+	setting of your compiler configuration. A simple solution is
+	to put the compiler binaries and the library files in the same
+	directory (or a subdirectory called "library"). Files can then
+	be compiled from within the directory where the compiler resides.
+
+	Library files must be converted to CP/M text format on CP/M.
 
 
 	COMPILER USAGE
@@ -161,7 +165,7 @@
 
 	The default target will be Tcode when only Tcode binaries are
 	installed on your system and Unix executables when native code
-	binaries are installed.
+	binaries are installed on a Unix system.
 
 	A different target can be specified using the -t option. For
 	example,
@@ -178,7 +182,7 @@
 	In native code installations, specifying the -b flag will use
 	the Tcode compiler instead of the native compiler.
 
-	When "/v" is specified as an output file name, the compiler will
+	When "/V" is specified as an output file name, the compiler will
 	print the name of each procedure it compiles. The name of the
 	output file will be the default, i.e. the name of the input file
 	with its suffix removed and an executable suffix attached, if
@@ -188,7 +192,7 @@
 	BUILDING CROSS COMPILERS
 
 	The "bin/build.sh" script can be used to build all T3X/0 cross
-	compiler automatically. Just run
+	compilers automatically. Just run
 
 	    bin/build.sh host target
 
@@ -225,7 +229,7 @@
 	this case the file "targets/txdos86c.t" renamed as "t3x.t".
 
 	Note that there will be lots of naming conflicts. The DOS and
-	CP/M compiler all share names, and the core module of every
+	CP/M compilers all share names, and the core module of every
 	compiler must be named "t3x.t". When installed, the Unix
 	compiler driver "tx0" will take care of these details. On other
 	systems it is up to you to create a workable solution.
@@ -248,8 +252,8 @@
 	any system except for FreeBSD 12.4 (on which it has been tested).
 
 	Then compile times are lightning fast, because no multi-megabyte
-	C compiler behemoth has to shoveled into memory. This might not
-	be a big issue these days, but self-compiling T3X/0 in 0.17
+	C compiler behemoth has to be shoveled into memory. This might
+	not be a big issue these days, but self-compiling T3X/0 in 0.17
 	seconds on a 1000MHz system is pretty cool (0.31s using the
 	generic Unix backend).
 

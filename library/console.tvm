@@ -1,0 +1,22 @@
+! TCVM Console Interface
+! Nils M Holm, 2024
+! Public Domain / 0BSD License
+
+module console;
+
+public inline	setup(1) = [ 0x80, 0x70 ],
+		shutdown(0) = [ 0x80, 0x71 ],
+		clrscr(0) = [ 0x80, 0x72 ],
+		clreol(0) = [ 0x80, 0x73 ],
+		move(2) = [ 0x80, 0x74 ],
+		scroll(0) = [ 0x80, 0x75 ],
+		rscroll(0) = [ 0x80, 0x76 ],
+		refresh(0) = [ 0x80, 0x77 ],
+		getkey(0) = [ 0x80, 0x78 ],
+		pollkey(0) = [ 0x80, 0x79 ],
+		wrch(1) = [ 0x80, 0x7A ],
+		writes(1) = [ 0x80, 0x7B ],
+		calibrate(1) = [ 0x80, 0x7C ],
+		wait(1) = [ 0x80, 0x7D ];
+
+end

@@ -3,7 +3,7 @@
 # Public domain / 0BSD license
 # Fixes for Linux, Darwin by Rogerio Senna
 
-V=15
+V=17
 
 # Detect OS
 #
@@ -24,6 +24,19 @@ ifeq ($(detected_OS),Linux)
   endif
 endif
 
+# TCVM Options
+#
+# CONSOLE will include console I/O functions in the TCVM.
+# Requires the curses library. Not needed for bootstrapping,
+# but only for running programs that use the CONSOLE module
+# on the TCVM. If -DCONSOLE causes trouble, just remove its
+# OPTS and LIBS lines.
+#
+OPTS=
+LIBS=
+OPTS+= -DCONSOLE
+LIBS+= library/console.c -lcurses
+
 # Flags for compiling T3X/0 assembly output
 #
 CFLAGS=-std=c89                # force C89 rules
@@ -41,7 +54,11 @@ T3XDIR=	/usr/local/t3x/0
 #
 BINDIR=	/u/bin
 
+# Host platform. Just keep "unix".
+#
 HOST=	unix
+
+########## nothing to configure past this line ##########
 
 all:	tcvm txtrn.tc
 
@@ -73,7 +90,7 @@ txtrn0:	txtrn0.t
 # The Tcode/0 VM
 #
 tcvm:	tcvm.c
-	cc $(CFLAGS) -O2 -g -o tcvm tcvm.c
+	cc $(CFLAGS) -O2 -g $(OPTS) -o tcvm tcvm.c $(LIBS)
 
 # Triple test of the Tcode/0 compiler
 #
@@ -179,6 +196,7 @@ install-native:	all-native tx-dos.tc tx-cpm.tc
 	install -c -m 0644 targets/txcpmz80.t $(T3XDIR)/cpmz80/t3x.t
 	install -c -m 0644 targets/txdos86c.t $(T3XDIR)/dos86c/t3x.t
 	install -c -m 0644 library/*.t $(T3XDIR)
+	install -c -m 0644 library/console.tvm $(T3XDIR)/console.t
 	install -c -m 0644 library/console.cpm $(T3XDIR)/cpmz80/console.t
 	install -c -m 0644 library/console.dos $(T3XDIR)/dos86c/console.t
 	install -c -m 0644 library/console.unx $(T3XDIR)/unx386/console.t

@@ -1,8 +1,18 @@
 
+	2024-03-04
+
+	- Added optional support for the CONSOLE module to the TCVM.
+	  Remove -DCONSOLE in Makefile if it causes any trouble.
+
+	2024-03-04
+
+	- Fixed a memcmp-related bug in the TCVM that manifested on some
+	  Linux systems. The TCVM should work on all Linux machines now.
+
 	2024-02-18
 
 	- Changed A=-A to A=~A+1 in TCVM, because -unsigned *probably*
-	  is undefined bahavior in C.
+	  is undefined behavior in C.
 
 	2024-01-24
 

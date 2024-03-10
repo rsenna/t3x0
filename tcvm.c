@@ -13,6 +13,23 @@
  #include <unistd.h>
 #endif
 
+#ifdef CONSOLE
+ void t3x_setup(int p);
+ void t3x_shutdown(void);
+ void t3x_clrscr(void);
+ void t3x_clreol(void);
+ void t3x_move(int x, int y);
+ void t3x_scroll(void);
+ void t3x_rscroll(void);
+ void t3x_refresh(void);
+ int t3x_getkey(void);
+ int t3x_pollkey(void);
+ void t3x_wrch(int c);
+ void t3x_writes(char *s);
+ void t3x_calibrate(int m);
+ void t3x_wait(int hs);
+#endif
+
 #undef DEBUG
 
 /*
@@ -42,7 +59,7 @@ void fail(char *s) {
 	wlog("tcvm: ");
 	wlog(s);
 	wlog("\n");
-	exit(1);
+	exit(EXIT_FAILURE);
 }
 
 void load(char *s) {
@@ -86,10 +103,10 @@ cell pop(void) {
 	P += 2;
 	return w(P-2);
 }
-#ifdef __TURBOC__
- int S(cell x) { return x; }
-#else
- int S(cell x) { return x > 32767? x-65536: x; }
+#ifdef __TURBOC__                                                               
+ int S(cell x) { return (int) x; }                                                    
+#else                                                                           
+ int S(cell x) { return x > 32767? (int) x - 65536: x; }
 #endif
 
 #define a()	w(I+1)
@@ -104,12 +121,12 @@ cell memscan(cell p, cell c, cell k) {
 	return 0xffff;
 }
 
-int getarg(int n, char *s, int k) {
+cell getarg(cell n, char *s, cell k) {
 	int	j, m;
 
 	n++;
 	k--;
-	if (n >= Narg) return -1;
+	if (n >= Narg) return 0xffff;
 	j = strlen(Args[n]);
 	m = j>=k? k: j;
 	memcpy(s, Args[n], m);
@@ -117,7 +134,7 @@ int getarg(int n, char *s, int k) {
 	return m;
 }
 
-cell t3xopen(char *s, int mode) {
+cell t3xopen(char *s, cell mode) {
 	int	r;
 
 	if (1 == mode)
@@ -130,7 +147,7 @@ cell t3xopen(char *s, int mode) {
 	if (r > 0) setmode(r, O_BINARY);
 #endif
 	if (3 == mode) lseek(r, 0L, SEEK_END);
-	return r;
+	return r < 0? 0xffff: r;
 }
 
 cell t3xseek(cell fd, cell where, cell how) {
@@ -153,7 +170,7 @@ cell t3xtrunc(cell fd) {
 	return 0;
 #else
  #ifdef unix
-	return ftruncate(fd, lseek(fd, 0, SEEK_CUR));
+	return ftruncate(fd, lseek(fd, 0, SEEK_CUR)) < 0? 0xffff: 0;
  #endif
  #ifdef __TURBOC__
 	return write(fd, "", 0);
@@ -196,16 +213,25 @@ cell t3xbreak(cell sem) {
 	return 0;
 }
 
+cell t3x_memcmp(byte *a, byte *b, cell k) {
+	int	r;
+
+	r = memcmp(a, b, k);
+	if (r < 0) return 0xffff;
+	if (r > 0) return 1;
+	return 0;
+}
+
 cell libcall(cell n) {
 	cell	r;
 
 #ifdef DEBUG
-	printf("LIBCALL(%d): %x %x %x %x\n", n, w(P+6), w(P+4), w(P+2), w(P));
+	printf("LIBCALL(%d): %x %x %x %x", n, w(P+6), w(P+4), w(P+2), w(P));
 #endif
 	switch (n) {
 	case  0: r = 2; break;
 	case  1: strcpy((char *) &M[w(P+2)], "\n"); r = w(P+2); break;
-	case  2: r = memcmp(&M[w(P+6)], &M[w(P+4)], w(P+2)); break;
+	case  2: r = t3x_memcmp(&M[w(P+6)], &M[w(P+4)], w(P+2)); break;
 	case  3: memmove(&M[w(P+6)], &M[w(P+4)], w(P+2)); r = 0; break;
 	case  4: memset(&M[w(P+6)], w(P+4), w(P+2)); r = 0; break;
 	case  5: r = memscan(w(P+6), w(P+4), w(P+2)); break;
@@ -220,8 +246,27 @@ cell libcall(cell n) {
 	case 14: r = remove((char *) &M[w(P+2)]); break;
 	case 15: r = t3xtrunc(w(P+2)); break;
 	case 16: r = t3xbreak(w(P+2)); break;
+#ifdef CONSOLE
+	case 112: t3x_setup(0); r = 0; break;
+	case 113: t3x_shutdown(); r = 0; break;
+	case 114: t3x_clrscr(); r = 0; break;
+	case 115: t3x_clreol(); r = 0; break;
+	case 116: t3x_move(w(P+2), w(P+4)); r = 0; break;
+	case 117: t3x_scroll(); r = 0; break;
+	case 118: t3x_rscroll(); r = 0; break;
+	case 119: t3x_refresh(); r = 0; break;
+	case 120: r = t3x_getkey(); break;
+	case 121: r = t3x_pollkey(); break;
+	case 122: t3x_wrch(w(P+2)); r = 0; break;
+	case 123: t3x_writes((char *) &M[w(P+2)]); r = 0; break;
+	case 124: t3x_calibrate(w(P+2)); r = 0; break;
+	case 125: t3x_wait(w(P+2)); r = 0; break;
+#endif
 	default: fail("bad library call"); r = 0; break;
 	}
+#ifdef DEBUG
+	printf(" = %x\n", r);
+#endif
 	return r & 0xffff;
 }
 
@@ -278,7 +323,7 @@ void run(void) {
 	case 0x25: A = ~A & 0xffff; break;
 	case 0x26: A = 0==A? 0xffff: 0; break;
 	case 0x27: A = pop() + A & 0xffff; break;
-	case 0x28: A = pop() - A & 0xffff; break;
+	case 0x28: A = (int) pop() - (int) A & 0xffff; break;
 	case 0x29: A = S(pop()) * S(A) & 0xffff; break;
 	case 0x2a: A = S(pop()) / S(A) & 0xffff; break;
 	case 0x2b: A = pop() % A & 0xffff; break;
