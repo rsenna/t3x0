@@ -2,6 +2,9 @@
 
 	T3X/0 - A NEW T3X COMPILER
 
+	Nils M Holm, 2022, 2023, 2024
+	Public domain / 0BSD license
+
 	T3X is a family of small, portable, procedural, block-structured,
 	recursive, and almost typeless programming languages. The T3X
 	syntax is similar to Pascal, its semantics resembles BCPL's.
