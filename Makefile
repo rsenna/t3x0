@@ -52,7 +52,7 @@ T3XDIR=	/usr/local/t3x/0
 
 # Where the binaries go
 #
-BINDIR=	/u/bin
+BINDIR=	/usr/local/bin
 
 # Host platform. Just keep "unix".
 #
