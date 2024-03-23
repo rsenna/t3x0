@@ -52,11 +52,20 @@ Mkfile.old
 dkms.conf
 
 # t3x/0 generated files | links
+programs/*
+!programs/**/
+!programs/*.t
 cg.t
 t3x.t
-txemit.t
 tcvm
-tx-cpm.com
-txtrn.tc
 test.tc
+tx-cpm
+tx-cpm.com
+tx-cpm.tc
+tx-dos
+tx-dos.tc
+tx-tcvm
+tx-unix
+txemit.t
+txtrn.tc
 
